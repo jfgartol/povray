@@ -18,7 +18,7 @@
 
 global_settings {
   assumed_gamma 2.2
-  }
+}
 
 #include "shapes.inc"
 #include "colors.inc"
@@ -29,68 +29,31 @@ global_settings {
 
 #declare This_Brass = texture { T_Brass_4B }
 
-#declare
-RedPencil = union {
+// The pencils are the same object with different color, rotation and translation
+// converted to macro with these 3 parameters
+#macro Pencil(COLOR, Rot, Trans)
+ union {
    cylinder {0, y*30, 0.5
+      pigment { COLOR }
       finish {
          crand 0.05
          ambient 0.3
          diffuse 0.7
-      }
-      pigment { Red }
+      }  
    }
-
-   cylinder {0, y*32, 0.5
-      finish {
-         crand 0.05
-         ambient 0.3
-         diffuse 0.7
-      }
+   cylinder {y*30, y*32, 0.5
       pigment { Tan }
+      finish {
+         crand 0.05
+         ambient 0.3
+         diffuse 0.7
+      }
    }
+   rotate Rot
+   translate Trans
 }
+#end
 
-#declare GreenPencil =
-union {
-   cylinder {0, y*30, 0.5
-      finish {
-         crand 0.05
-         ambient 0.3
-         diffuse 0.7
-      }
-      pigment { Green }
-   }
-
-   cylinder {0, y*32, 0.5
-      finish {
-         crand 0.05
-         ambient 0.3
-         diffuse 0.7
-      }
-      pigment { Tan }
-   }
-}
-
-#declare BluePencil =
-union {
-   cylinder {0, y*30, 0.5
-      finish {
-         crand 0.05
-         ambient 0.3
-         diffuse 0.7
-      }
-      pigment { Blue }
-   }
-
-   cylinder {0, y*32, 0.5
-      finish {
-         crand 0.05
-         ambient 0.3
-         diffuse 0.7
-      }
-      pigment { Tan }
-   }
-}
 
 #declare Back_Wall =
 plane { z, 200.0
@@ -110,7 +73,7 @@ plane { y,  500.0
       ambient 0.3
       diffuse 0.7
    }
-   pigment { White }
+   pigment { rgb 1 }
 }
 
 
@@ -133,17 +96,17 @@ box { <-125, -2, -100> <125, 2, 100>
 #declare Blotter =
 union {
    triangle {
-      <0.0, 0.0, 0.0>
-      <8.5, 0.0, 0.0>
-      <0.0, 0.0, -11.0>
+      <0  , 0,  0>
+      <8.5, 0,  0>
+      <0  , 0, -11>
    }
    triangle {
-      <0.0, 0.0, -11.0>
-      <8.5, 0.0, -11.0>
-      <8.5, 0.0, 0.0>
+      <0.0, 0, -11>
+      <8.5, 0, -11>
+      <8.5, 0,  0>
    }
 
-   scale <4.0, 1.0, 4.0>
+   scale <4, 1, 4>
    rotate -30.0*y
    translate <-20.0, -17.9999, -40.0>
 
@@ -152,12 +115,12 @@ union {
       ambient 0.15
       diffuse 0.5
    }
-   pigment { colour red 0.5 green 0.5 blue 0.3 }
+   pigment { color rgb<0.5, 0.5, 0.3> }
 }
 
 #declare Paperweight=
 intersection {
-   sphere { <0.0, -5.0, 0.0>, 10.0 }
+   sphere { <0, -5, 0>, 10 }
    disc { 0, -y, 10.1 }
    translate <0.0, -17.9998, -35.0>
    //texture { T_Green_Glass }
@@ -175,47 +138,29 @@ intersection {
 /*The Picture itself*/
 #declare Picture =
 union {
-      box { -1, 1
-      translate <1.0, 1.0, 1.0>
-      scale <20.0, 15.0, 1.0>
-
+      box { 0, <40.0, 30.0, 0.1>
       finish {
          ambient 0.05
          diffuse 0.9
       }
       pigment {
-         #switch(clock)
-         #case(4)
-             image_map { png "desk3.png" once interpolate 2.0 }
-             scale <40.0, 30.0, 1.0>
-             scale <1.5, 1.5, 1.0>
-             #break
-         #case(3)
-             image_map { png "desk2.png" once interpolate 2.0 }
-             scale <40.0, 30.0, 1.0>
-             scale <1.5, 1.5, 1.0>
-             #break
-         #case(2)
-             image_map { png "desk1.png" once interpolate 2.0 }
-             scale <40.0, 30.0, 1.0>
-             scale <1.5, 1.5, 1.0>
-             #break
+      	// changed switch to if
+         #if (clock>1)
+             image_map { png concat("desk",str(clock-1,0,0),".png") once interpolate 2.0 }
+             scale <60.0, 45.0, 1>
          #else
-             Gray50
+             Gray50         
          #end
       }
    }
 
    /* The picture frame */
    union {
-      cylinder {-y,31*y,1 translate 41*x }
-      cylinder {-y,31*y,1 translate -1*x }
-      cylinder {-x,41*x,1 translate 31*y }
-      cylinder {-x,41*x,1 translate -1*y }
-      sphere { <-1.0, -1.0, 0.0>, 1.0 }
-      sphere { <-1.0, 31.0, 0.0>, 1.0 }
-      sphere { <41.0, -1.0, 0.0>, 1.0 }
-      sphere { <41.0, 31.0, 0.0>, 1.0 }
+		#local verts=array[4]{<-1, -1, 0>, <-1, 31, 0>, <41, 31, 0>, <41, -1, 0>}
+		#for (i,0,3)
+			 sphere { verts[i], 1.0 }
+			 cylinder {verts[i],verts[(i<3?i+1:0)],1}
+		#end
       texture { This_Brass }
    }
 
@@ -226,59 +171,42 @@ union {
 
 #declare Pencil_Holder =
 union {
+   // rounded base
+	torus{4,1
+		translate y*1
+		texture { This_Brass }
+	}
    intersection {
-      object { Cylinder_Y scale <5.0, 1.0, 5.0> }
-      object { Cylinder_Y scale <4.8, 1.0, 4.8> inverse }
-      plane { y, 0.0 inverse }
+	   cylinder{y*1, y*40, 5}
+	   cylinder{y*2, y*41, 4.8 inverse}
       plane { y, 15.0 rotate -45*x }
       texture { This_Brass }
    }
-   object {
-      RedPencil
-      rotate -2*z
-      translate <1.0, 0.0, 1.0>
-   }
-   object {
-      GreenPencil
-      rotate 2.0*z
-      translate <-1.0, 3.0, 0.0>
-   }
-   object {
-      BluePencil
-      rotate <-2.0, 0.0, 3.0>
-      translate <0.0, -2.0, -1.0>
-   }
+   Pencil(Red,   -2*z     ,< 1,  0,  1>)
+   Pencil(Green, 2.0*z    ,<-1,  3,  0>)
+   Pencil(Blue, <-2, 0, 3>,< 0, -2, -1>)
    rotate 45*y
-   translate <70.0, -18.0, -20.0>
+   translate <70, -18, -20>
 }
 
 #declare Lamp =
 union {
-   object {
-      cylinder { -y*18, y*40, 3 }
-      texture { This_Brass }
-   }
-   cylinder { -y*2, y*2, 25
-//    intersection {
-//       object { Cylinder_Y scale <25.0, 1.0, 25.0> }
-//       plane { y, 2.0 }
-//       plane { y, -2.0 inverse }
-
-      translate <0.0, -16.0, -5.0>
+   cylinder { -y*18, y*40, 3 }
+   union{
+   	torus{23,2 translate<0, -16,-5>} // rounded base top
+   	cylinder {<0, -18, -5><0, -16, -5>, 25}
+      cylinder {<0, -18, -5><0, -14, -5>, 23}
       texture { This_Brass
          normal { bumps 0.1 }
       }
    }
-
-   intersection {
-      object { Cylinder_X scale <1.0, 10.0, 10.0> }
-      object { Cylinder_X scale <1.0, 9.95, 9.95> inverse }
-      plane { y, 0.0 inverse }
-      plane { x, -30.0 inverse }
-      plane { x, 30.0 }
-
-      translate <0.0, 35.0, -13.0>
-
+	
+	cylinder{
+		x*30,-x*30,10
+		clipped_by{
+         plane { y, 0.0 inverse }
+		}
+		translate <0.0, 35.0, -13.0>
       finish {
          Shiny
          crand 0.05
@@ -288,40 +216,41 @@ union {
          brilliance 4.0
       }
       pigment { DarkGreen }
-   }
+	}
 
    union {
-      intersection {
-         sphere { <-30.0, 35.0, -13.0>, 10.0 }
-         sphere { <-30.0, 35.0, -13.0>, 9.95 inverse }
-         plane { y, 35.0 inverse }
-         plane { x, -30.0 }
+      sphere { <-30.0, 35.0, -13.0>, 10.0
+         clipped_by{
+            plane { y, 35.0 inverse }
+            plane { x, -30.0 }
+         }
       }
-      intersection {
-         plane { y, 35.0 inverse }
-         plane { x, 30.0 inverse }
-         sphere { <30.0, 35.0, -13.0>, 10.0 }
-         sphere { <30.0, 35.0, -13.0>, 9.95 inverse }
+      sphere { <30.0, 35.0, -13.0>, 10.0 
+			clipped_by{
+            plane { y, 35.0 inverse }
+            plane { x, 30.0 inverse }
+         }
       }
-      texture { This_Brass }
+      
    }
-
+   texture { This_Brass }
+   
    rotate 35*y
    translate <50.0, 0.0, 30.0>
 }
 
 /*The fluorescent tube inside the lamp*/
 #declare Lamp_Light_Source =
-light_source { <0, 0, 0> color White
+light_source { <0, 0, 0> color rgb 1
 
     looks_like {
        cylinder { -x*25, x*25, 2
-          pigment { White filter 0 }
+          pigment { rgb 1 filter 0 }
           finish { ambient 1 diffuse 0 }
       }
    }
 
-   translate <0.0, 43.0, -10.0>
+   translate <0.0, 42.0, -10.0>
    rotate 35*y
    translate <50.0, 0.0, 30.0>
 }
@@ -329,10 +258,10 @@ camera {
    location <0.0, 40.0, -150.0>
    angle 65 
    right x*image_width/image_height // keep propotions with any aspect ratio
-   look_at <0.0, 0.0, 0.0>
+   look_at 0
 }
 
-light_source { <20.0, 100.0, -200.0> colour White }
+light_source { <20.0, 100.0, -200.0> color rgb 1 }
 
 object { Back_Wall }
 object { Ceiling }
@@ -343,3 +272,4 @@ object { Lamp }
 object { Lamp_Light_Source }
 object { Picture }
 object { Pencil_Holder }
+// 282
