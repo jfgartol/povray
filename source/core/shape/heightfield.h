@@ -7,8 +7,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -39,6 +39,14 @@
 // Module config header file must be the first file included within POV-Ray unit header files
 #include "core/configcore.h"
 
+// C++ variants of C standard header files
+// C++ standard header files
+//  (none at the moment)
+
+// POV-Ray header files (base module)
+//  (none at the moment)
+
+// POV-Ray header files (core module)
 #include "core/scene/object.h"
 
 namespace pov
@@ -69,29 +77,8 @@ namespace pov
 * Global typedefs
 ******************************************************************************/
 
-typedef struct HField_Data_Struct HFIELD_DATA;
-typedef struct HField_Block_Struct HFIELD_BLOCK;
-typedef short HF_Normals[3];
-
-struct HField_Block_Struct
-{
-    int xmin, xmax;
-    int zmin, zmax;
-    DBL ymin, ymax;
-};
-
-struct HField_Data_Struct
-{
-    int References;
-    int Normals_Height;  /* Needed for Destructor */
-    int max_x, max_z;
-    HF_VAL min_y, max_y;
-    int block_max_x, block_max_z;
-    int block_width_x, block_width_z;
-    HF_VAL **Map;
-    HF_Normals **Normals;
-    HFIELD_BLOCK **Block;
-};
+struct HFData;
+struct HFBlock;
 
 class ImageData;
 
@@ -103,26 +90,26 @@ class ImageData;
 /// then follows the line from one intersection point to the other, testing the two triangles which form the pixel for
 /// an intersection with the ray at each step.
 ///
-class HField : public ObjectBase
+class HField final : public ObjectBase
 {
     public:
         Vector3d bounding_corner1;
         Vector3d bounding_corner2;
-        HFIELD_DATA *Data;
+        HFData *Data;
 
         HField();
-        virtual ~HField();
+        virtual ~HField() override;
 
-        virtual ObjectPtr Copy();
+        virtual ObjectPtr Copy() override;
 
-        virtual bool All_Intersections(const Ray&, IStack&, TraceThreadData *);
-        virtual bool Inside(const Vector3d&, TraceThreadData *) const;
-        virtual void Normal(Vector3d&, Intersection *, TraceThreadData *) const;
-        virtual void Translate(const Vector3d&, const TRANSFORM *);
-        virtual void Rotate(const Vector3d&, const TRANSFORM *);
-        virtual void Scale(const Vector3d&, const TRANSFORM *);
-        virtual void Transform(const TRANSFORM *);
-        virtual void Compute_BBox();
+        virtual bool All_Intersections(const Ray&, IStack&, TraceThreadData *) override;
+        virtual bool Inside(const Vector3d&, TraceThreadData *) const override;
+        virtual void Normal(Vector3d&, Intersection *, TraceThreadData *) const override;
+        virtual void Translate(const Vector3d&, const TRANSFORM *) override;
+        virtual void Rotate(const Vector3d&, const TRANSFORM *) override;
+        virtual void Scale(const Vector3d&, const TRANSFORM *) override;
+        virtual void Transform(const TRANSFORM *) override;
+        virtual void Compute_BBox() override;
 
         void Compute_HField(const ImageData *image);
     protected:
@@ -130,7 +117,7 @@ class HField : public ObjectBase
         void smooth_height_field(int xsize, int zsize);
         bool intersect_pixel(int x, int z, const BasicRay& ray, DBL height1, DBL height2, IStack &HField_Stack, const BasicRay &RRay, DBL mindist, DBL maxdist, TraceThreadData *Thread);
         static int add_single_normal(HF_VAL **data, int xsize, int zsize, int x0, int z0,int x1, int z1,int x2, int z2, Vector3d& N);
-        bool dda_traversal(const BasicRay &ray, const Vector3d& Start, const HFIELD_BLOCK *Block, IStack &HField_Stack, const BasicRay &RRay, DBL mindist, DBL maxdist, TraceThreadData *Thread);
+        bool dda_traversal(const BasicRay &ray, const Vector3d& Start, const HFBlock *Block, IStack &HField_Stack, const BasicRay &RRay, DBL mindist, DBL maxdist, TraceThreadData *Thread);
         bool block_traversal(const BasicRay &ray, const Vector3d& Start, IStack &HField_Stack, const BasicRay &RRay, DBL mindist, DBL maxdist, TraceThreadData *Thread);
         void build_hfield_blocks();
 };
@@ -140,5 +127,6 @@ class HField : public ObjectBase
 //##############################################################################
 
 }
+// end of namespace pov
 
 #endif // POVRAY_CORE_HEIGHTFIELD_H

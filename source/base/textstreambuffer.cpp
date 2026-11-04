@@ -7,8 +7,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -36,14 +36,15 @@
 // Unit header file must be the first file included within POV-Ray *.cpp files (pulls in config)
 #include "base/textstreambuffer.h"
 
-// C++ variants of standard C header files
+// C++ variants of C standard header files
 #include <cstdarg>
+#include <cstdio>
 #include <cstring>
 
-// Standard C++ header files
+// C++ standard header files
 #include <algorithm>
 
-// POV-Ray base header files
+// POV-Ray header files (base module)
 #include "base/pov_err.h"
 #include "base/stringutilities.h"
 #include "base/types.h"
@@ -54,6 +55,9 @@
 namespace pov_base
 {
 
+using std::min;
+using std::max;
+
 TextStreamBuffer::TextStreamBuffer(size_t buffersize, unsigned int wrapwidth)
 {
     boffset = 0;
@@ -61,7 +65,7 @@ TextStreamBuffer::TextStreamBuffer(size_t buffersize, unsigned int wrapwidth)
     wrap = wrapwidth;
     curline = 0;
     buffer = new char[bsize];
-    if(buffer == NULL)
+    if (buffer == nullptr)
         throw POV_EXCEPTION_CODE(kOutOfMemoryErr);
 }
 
@@ -71,9 +75,9 @@ TextStreamBuffer::~TextStreamBuffer()
     bsize = 0;
     wrap = 0;
     curline = 0;
-    if(buffer != NULL)
+    if (buffer != nullptr)
         delete[] buffer;
-    buffer = NULL;
+    buffer = nullptr;
 }
 
 void TextStreamBuffer::printf(const char *format, ...)
@@ -81,7 +85,7 @@ void TextStreamBuffer::printf(const char *format, ...)
     va_list marker;
 
     va_start(marker, format);
-    vsnprintf(&buffer[boffset], bsize - boffset - 1, format, marker);
+    std::vsnprintf(&buffer[boffset], bsize - boffset, format, marker);
     va_end(marker);
 
     // direct output
@@ -108,11 +112,11 @@ void TextStreamBuffer::putc(int chr)
     printf("%c", chr);
 }
 
-void TextStreamBuffer::printfile(const char *filename, POV_LONG offset, POV_LONG lines)
+void TextStreamBuffer::printfile(const char *filename, POV_OFF_T offset, POV_LONG lines)
 {
     FILE *file = fopen(filename, "r");
 
-    if(file != NULL)
+    if (file != nullptr)
     {
         fseek(file, offset, SEEK_SET);
         printfile(file, lines);
@@ -122,10 +126,10 @@ void TextStreamBuffer::printfile(const char *filename, POV_LONG offset, POV_LONG
 
 void TextStreamBuffer::printfile(FILE *file, POV_LONG lines)
 {
-    if(file != NULL)
+    if (file != nullptr)
     {
         bool stopposset = (lines < 0); // only if walking backwards stop at current position
-        POV_LONG stoppos = (POV_LONG)(ftell(file));
+        POV_OFF_T stoppos = (POV_OFF_T)(ftell(file));
         int chr = 0;
 
         if(lines < 0)
@@ -136,7 +140,7 @@ void TextStreamBuffer::printfile(FILE *file, POV_LONG lines)
             // back to the end of that line. Thus, the next step will walk forward
             // again to the beginning of the right line, which is the desired
             // position. Do not change this behavior without testing! [trf]
-            for(POV_LONG pos = (POV_LONG)(ftell(file)) - 1; (lineoffset < 1) && (pos >= 0); pos--)
+            for(POV_OFF_T pos = (POV_OFF_T)(ftell(file)) - 1; (lineoffset < 1) && (pos >= 0); pos--)
             {
                 // WARNING: Expensive way to walk backward through a file, but will only
                 // be used when problems are encountered anyway, and then it most likely
@@ -183,7 +187,7 @@ void TextStreamBuffer::printfile(FILE *file, POV_LONG lines)
         {
             chr = fgetc(file);
 
-            if((stopposset == true) && (stoppos == ((POV_LONG)(ftell(file)) - 1))) // only if walking backwards stop at initial position
+            if((stopposset == true) && (stoppos == ((POV_OFF_T)(ftell(file)) - 1))) // only if walking backwards stop at initial position
                 break;
 
             // count newlines in file and replace newlines with system specific newline character
@@ -194,7 +198,7 @@ void TextStreamBuffer::printfile(FILE *file, POV_LONG lines)
                     ungetc(chr, file);
                 else
                 {
-                    if((stopposset == true) && (stoppos == ((POV_LONG)(ftell(file)) - 1))) // only if walking backwards stop at initial position
+                    if((stopposset == true) && (stoppos == ((POV_OFF_T)(ftell(file)) - 1))) // only if walking backwards stop at initial position
                         break;
                 }
                 printf("\n");
@@ -331,3 +335,4 @@ void TextStreamBuffer::directflush(const char *str, unsigned int chars)
 }
 
 }
+// end of namespace pov_base

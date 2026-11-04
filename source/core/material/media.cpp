@@ -7,8 +7,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -36,21 +36,35 @@
 // Unit header file must be the first file included within POV-Ray *.cpp files (pulls in config)
 #include "core/material/media.h"
 
+// C++ variants of C standard header files
+//  (none at the moment)
+
+// C++ standard header files
 #include <algorithm>
 
+// POV-Ray header files (base module)
+//  (none at the moment)
+
+// POV-Ray header files (core module)
 #include "core/lighting/lightsource.h"
 #include "core/lighting/photons.h"
 #include "core/material/pattern.h"
 #include "core/material/pigment.h"
 #include "core/math/chi2.h"
 #include "core/render/ray.h"
+#include "core/scene/object.h"
 #include "core/scene/tracethreaddata.h"
+#include "core/support/statistics.h"
 
 // this must be the last file included
 #include "base/povdebug.h"
 
 namespace pov
 {
+
+using std::min;
+using std::max;
+using std::vector;
 
 Media::Media()
 {
@@ -80,7 +94,7 @@ Media::Media()
     Confidence = 0.9;
     Variance   = 1.0 / 128.0;
 
-    Sample_Threshold = NULL;
+    Sample_Threshold = nullptr;
 
     Sample_Method = 1;
     AA_Threshold = 0.1;
@@ -90,14 +104,14 @@ Media::Media()
 
 Media::Media(const Media& source)
 {
-    Sample_Threshold = NULL;
+    Sample_Threshold = nullptr;
 
     *this = source;
 }
 
 Media::~Media()
 {
-    if(Sample_Threshold != NULL)
+    if (Sample_Threshold != nullptr)
         delete[] Sample_Threshold;
 
     for (vector<PIGMENT*>::iterator i = Density.begin(); i != Density.end(); ++ i)
@@ -132,9 +146,9 @@ Media& Media::operator=(const Media& source)
         AA_Threshold = source.AA_Threshold;
         AA_Level = source.AA_Level;
 
-        if(Sample_Threshold != NULL)
+        if (Sample_Threshold != nullptr)
             delete[] Sample_Threshold;
-        Sample_Threshold = NULL;
+        Sample_Threshold = nullptr;
 
         for (vector<PIGMENT*>::iterator i = Density.begin(); i != Density.end(); ++ i)
             Destroy_Pigment(*i);
@@ -143,7 +157,7 @@ Media& Media::operator=(const Media& source)
         for (vector<PIGMENT*>::const_iterator i = source.Density.begin(); i != source.Density.end(); ++ i)
             Density.push_back(Copy_Pigment(*i));
 
-        if(source.Sample_Threshold != NULL)
+        if (source.Sample_Threshold != nullptr)
         {
             if(Intervals > 0)
             {
@@ -181,7 +195,7 @@ void Media::PostProcess()
     use_extinction = use_absorption || use_scattering;
 
     // Init sample threshold array.
-    if(Sample_Threshold != NULL)
+    if (Sample_Threshold != nullptr)
         delete[] Sample_Threshold;
 
     // Create list of thresholds for confidence test.
@@ -583,7 +597,7 @@ void MediaFunction::ComputeMediaSampleInterval(LitIntervalVector& litintervals, 
 
 void MediaFunction::ComputeMediaLightInterval(LightSourceEntryVector& lights, LitIntervalVector& litintervals, const Ray& ray, const Intersection& isect)
 {
-    if(isect.Object != NULL)
+    if (isect.Object != nullptr)
     {
         if((isect.Object->Flags & NO_GLOBAL_LIGHTS_FLAG) != NO_GLOBAL_LIGHTS_FLAG)
         {
@@ -612,9 +626,17 @@ void MediaFunction::ComputeMediaLightInterval(LightSourceEntryVector& lights, Li
     if(lights.empty() == false)
     {
 #if 1
-        // TODO FIXME remove this workaround once the new, more efficient code after the #else is fixed
-        FixedSimpleVector<DBL, LIGHTSOURCE_VECTOR_SIZE> s0;
-        FixedSimpleVector<DBL, LIGHTSOURCE_VECTOR_SIZE> s1;
+        // Using thread storage duration for the following temporary lists to avoid repeated
+        // cycles of allocation, construction, upsizing and destruction. Of course we still
+        // need to make sure we start with a clean slate each time around. We also set an
+        // initial minimum capacity.
+        thread_local POV_SIMPLE_VECTOR<DBL> s0;
+        thread_local POV_SIMPLE_VECTOR<DBL> s1;
+        s0.clear();
+        s1.clear();
+        s0.reserve(LIGHTSOURCE_VECTOR_SIZE);
+        s1.reserve(LIGHTSOURCE_VECTOR_SIZE);
+
         for (LightSourceEntryVector::iterator i (lights.begin()); i != lights.end(); i++)
         {
             s0.push_back(i->s0);
@@ -957,9 +979,9 @@ void MediaFunction::ComputeOneMediaSample(MediaVector& medias, LightSourceEntryV
 
             // determine whether or not this media is ignoring photons
             // save this in the thread data... it will be used by ComputeShadowColour
-            // maybe this should be (or already is?) computed elsewhere and passed in
-            // as a parameter ( see the ignore_photons parameter! )
-            // I need to look closer at the new 3.7 code to clean that up [NK]
+            // TODO - maybe this should be (or already is?) computed elsewhere and passed in
+            //        as a parameter ( see the ignore_photons parameter! )
+            //        I need to look closer at the new code to clean that up [NK]
             // assume true, set to false if we find even one
             threadData->litObjectIgnoresPhotons = true;
             for(MediaVector::iterator i(medias.begin()); i != medias.end(); i++)
@@ -984,7 +1006,7 @@ void MediaFunction::ComputeOneMediaSample(MediaVector& medias, LightSourceEntryV
         }
 
         // process media photons whether or not the interval is directly lit
-        if((photonGatherer != NULL) && (photonGatherer->map->numPhotons > 0))
+        if((photonGatherer != nullptr) && (photonGatherer->map->numPhotons > 0))
         {
             ComputeMediaPhotons(medias, Emission, Scattering, ray, H);
         }
@@ -1110,7 +1132,7 @@ void MediaFunction::ComputeMediaPhotons(MediaVector& medias, MathColour& Te, con
     MathColour Light_Colour;
     MathColour Colour2;
 
-    if((photonGatherer != NULL) && (photonGatherer->map->numPhotons > 0))
+    if((photonGatherer != nullptr) && (photonGatherer->map->numPhotons > 0))
     {
         //PhotonGatherer gatherer2(photonGatherer->map,photonGatherer->photonSettings);
         photonGatherer->gathered = false;
@@ -1120,7 +1142,7 @@ void MediaFunction::ComputeMediaPhotons(MediaVector& medias, MathColour& Te, con
         if(photonGatherer->gathered)
             r = photonGatherer->alreadyGatheredRadius;
         else
-            r = photonGatherer->gatherPhotonsAdaptive(&H, NULL, false);
+            r = photonGatherer->gatherPhotonsAdaptive(&H, nullptr, false);
 
         Colour2.Clear();
 
@@ -1197,3 +1219,4 @@ void MediaFunction::ComputeMediaScatteringAttenuation(MediaVector& medias, MathC
 }
 
 }
+// end of namespace pov

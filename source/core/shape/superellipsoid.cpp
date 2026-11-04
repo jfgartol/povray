@@ -10,8 +10,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -66,10 +66,21 @@
 // Unit header file must be the first file included within POV-Ray *.cpp files (pulls in config)
 #include "core/shape/superellipsoid.h"
 
+// C++ variants of C standard header files
+#include <cstdlib>
+
+// C++ standard header files
+//  (none at the moment)
+
+// POV-Ray header files (base module)
+//  (none at the moment)
+
+// POV-Ray header files (core module)
 #include "core/bounding/boundingbox.h"
 #include "core/math/matrix.h"
 #include "core/render/ray.h"
 #include "core/scene/tracethreaddata.h"
+#include "core/support/statistics.h"
 
 // this must be the last file included
 #include "base/povdebug.h"
@@ -1085,8 +1096,8 @@ DBL Superellipsoid::evaluate_superellipsoid(const Vector3d& P) const
 
 DBL Superellipsoid::power(DBL x, DBL  e)
 {
-    register int i;
-    register DBL b;
+    int i;
+    DBL b;
 
     b = x;
 
@@ -1294,7 +1305,7 @@ int Superellipsoid::find_ray_plane_points(const Vector3d& P, const Vector3d& D, 
 
     /* Sort the results for further processing. */
 
-    QSORT(reinterpret_cast<void *>(dists), cnt, sizeof(DBL), compdists);
+    std::qsort(dists, cnt, sizeof(DBL), compdists);
 
     return(cnt);
 }
@@ -1548,3 +1559,4 @@ bool Superellipsoid::check_hit2(const Vector3d& P, const Vector3d& D, DBL t0, Ve
 }
 
 }
+// end of namespace pov

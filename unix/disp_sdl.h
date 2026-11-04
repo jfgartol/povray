@@ -9,8 +9,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2014 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -35,10 +35,12 @@
 ///
 //*******************************************************************************
 
+#ifndef POVRAY_UNIX_DISP_SDL_H
+#define POVRAY_UNIX_DISP_SDL_H
+
 #ifdef HAVE_LIBSDL
 
-#ifndef _DISP_SDL_H
-#define _DISP_SDL_H
+#include <vector>
 
 #include "vfe.h"
 #include "unixoptions.h"
@@ -51,29 +53,29 @@ namespace pov_frontend
     using namespace vfe;
     using namespace vfePlatform;
 
-    class UnixSDLDisplay : public UnixDisplay
+    class UnixSDLDisplay final : public UnixDisplay
     {
         public:
             static const UnixOptionsProcessor::Option_Info Options[];
             static bool Register(vfeUnixSession *session);
 
-            UnixSDLDisplay(unsigned int w, unsigned int h, GammaCurvePtr gamma, vfeSession *session, bool visible);
-            virtual ~UnixSDLDisplay();
-            void Initialise();
-            void Close();
-            void Show();
-            void Hide();
-            bool TakeOver(UnixDisplay *display);
-            void DrawPixel(unsigned int x, unsigned int y, const RGBA8& colour);
-            void DrawRectangleFrame(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, const RGBA8& colour);
-            void DrawFilledRectangle(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, const RGBA8& colour);
-            void DrawPixelBlock(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, const RGBA8 *colour);
-            void Clear();
-            bool HandleEvents();
-            void UpdateScreen(bool Force);
-            void PauseWhenDoneNotifyStart();
-            bool PauseWhenDoneResumeIsRequested();
-            void PauseWhenDoneNotifyEnd();
+            UnixSDLDisplay(unsigned int w, unsigned int h, vfeSession *session, bool visible);
+            virtual ~UnixSDLDisplay() override;
+            virtual void Initialise() override;
+            virtual void Close() override;
+            virtual void Show() override;
+            virtual void Hide() override;
+            virtual bool TakeOver(UnixDisplay *display) override;
+            virtual void DrawPixel(unsigned int x, unsigned int y, const RGBA8& colour) override;
+            virtual void DrawRectangleFrame(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, const RGBA8& colour) override;
+            virtual void DrawFilledRectangle(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, const RGBA8& colour) override;
+            virtual void DrawPixelBlock(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2, const RGBA8 *colour) override;
+            virtual void Clear() override;
+            virtual bool HandleEvents() override;
+            virtual void UpdateScreen(bool Force) override;
+            virtual void PauseWhenDoneNotifyStart() override;
+            virtual bool PauseWhenDoneResumeIsRequested() override;
+            virtual void PauseWhenDoneNotifyEnd() override;
 
         protected:
             /// Number of Pixels before the display is updated
@@ -109,10 +111,11 @@ namespace pov_frontend
             SDL_Rect m_screen_rect;
             SDL_Rect m_update_rect;
             /// for mixing colors in scaled down display
-            vector<unsigned char> m_PxCount;
+            std::vector<unsigned char> m_PxCount;
     };
 }
-
-#endif /* _DISP_SDL_H */
+// end of namespace pov_frontend
 
 #endif /* HAVE_LIBSDL */
+
+#endif // POVRAY_UNIX_DISP_SDL_H

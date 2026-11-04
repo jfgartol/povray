@@ -105,12 +105,18 @@
     <ClCompile Include="..\..\source\backend\precomp.cpp">
       <Filter>Backend Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\source\backend\control\benchmark_ini.cpp">
+      <Filter>Backend Source\Control</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\backend\control\benchmark_pov.cpp">
+      <Filter>Backend Source\Control</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\backend\control\parsertask.cpp">
+      <Filter>Backend Source\Control</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\backend\configbackend.h">
-      <Filter>Backend Headers</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\source\backend\frame.h">
       <Filter>Backend Headers</Filter>
     </ClInclude>
     <ClInclude Include="..\..\source\backend\povray.h">
@@ -175,6 +181,33 @@
     </ClInclude>
     <ClInclude Include="..\..\source\backend\precomp.h">
       <Filter>Backend Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\backend\control\benchmark_ini.h">
+      <Filter>Backend Headers\Control</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\backend\control\benchmark_pov.h">
+      <Filter>Backend Headers\Control</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\backend\control\parsertask.h">
+      <Filter>Backend Headers\Control</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\backend\scene\backendscenedata_fwd.h">
+      <Filter>Backend Headers\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\backend\scene\view_fwd.h">
+      <Filter>Backend Headers\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\backend\control\scene_fwd.h">
+      <Filter>Backend Headers\Control</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\backend\scene\viewthreaddata_fwd.h">
+      <Filter>Backend Headers\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\backend\lighting\photonshootingstrategy_fwd.h">
+      <Filter>Backend Headers\Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\backend\control\messagefactory_fwd.h">
+      <Filter>Backend Headers\Control</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

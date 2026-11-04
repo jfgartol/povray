@@ -6,13 +6,13 @@
 /// variables.
 ///
 /// @author Christoph Hormann <chris_hormann@gmx.de>
-/// @author Based on 3.6 elements by Nicolas Calimet
+/// @author Based on v3.6 elements by Nicolas Calimet
 ///
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2015 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -38,15 +38,27 @@
 //*******************************************************************************
 
 #include "unixoptions.h"
+
+// C++ variants of C standard header files
+#include <cstdlib>
+
+// C++ standard header files
 #include <fstream>
-#include <sys/stat.h>
+#include <vector>
+
+// Boost header files
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
+
+// Other library header files
+#include <sys/stat.h>
 
 namespace vfePlatform
 {
     using std::cerr;
     using std::endl;
+    using std::string;
+    using std::list;
 
     extern bool gShelloutsPermittedFixThis;
 
@@ -56,16 +68,17 @@ namespace vfePlatform
         UnixOptionsProcessor::Option_Info("general", "help", "off", false, "--help|-help|-h|-?", "", "display usage information"),
         UnixOptionsProcessor::Option_Info("general", "temppath", "", true, "", "POV_TEMP_DIR", "directory for temporary files"),
         UnixOptionsProcessor::Option_Info("general", "version", "off", false, "--version|-version|--V", "", "display program version"),
+        UnixOptionsProcessor::Option_Info("general", "generation", "off", false, "--generation", "", "display program generation (short version number)"),
         UnixOptionsProcessor::Option_Info("general", "benchmark", "off", false, "--benchmark|-benchmark", "", "run the standard POV-Ray benchmark"),
         UnixOptionsProcessor::Option_Info("", "", "", false, "", "", "") // has to be last
     };
 
-    // based on 3.6 unix_create_globals()
+    // based on v3.6 unix_create_globals()
     UnixOptionsProcessor::UnixOptionsProcessor(vfeSession *session) :
         m_Session(session)
     {
         char* value;
-        value = getenv("HOME");
+        value = std::getenv("HOME");
         m_home = value ? value:"";
 
         // Default values for I/O restrictions: everything is allowed.
@@ -158,6 +171,8 @@ namespace vfePlatform
 
     void UnixOptionsProcessor::PrintOptions(void)
     {
+        // TODO -- GNU/Linux customs would be to print to stdout (among other differences).
+
         cerr << endl;
         cerr << "Platform specific command line options:" << endl;
 
@@ -297,13 +312,13 @@ namespace vfePlatform
             // environment variables:
             if ((*iter).EnvVariable != "")
             {
-                char *tmp = getenv((*iter).EnvVariable.c_str());
+                char *tmp = std::getenv((*iter).EnvVariable.c_str());
                 if (tmp) // variable defined?
                     (*iter).Value = tmp;
             }
 
             // command line options:
-            // based on 3.6 XWIN_init_povray()
+            // based on v3.6 XWIN_init_povray()
             if ((*iter).CmdOption != "")
             {
                 int oargc = *argc;
@@ -318,12 +333,12 @@ namespace vfePlatform
                     strcpy(nargv[i], oargv[i]);
                 }
 
-                nargv[nargc] = NULL;
+                nargv[nargc] = nullptr;
 
-                vector<string> CmdVariations;
+                std::vector<string> CmdVariations;
                 boost::split(CmdVariations, (*iter).CmdOption, boost::is_any_of("|"));
 
-                for (vector<string>::iterator iter_c = CmdVariations.begin(); iter_c != CmdVariations.end(); iter_c++)
+                for (std::vector<string>::iterator iter_c = CmdVariations.begin(); iter_c != CmdVariations.end(); iter_c++)
                 {
                     for (int i = 1; i < nargc;)
                     {
@@ -332,7 +347,7 @@ namespace vfePlatform
                             if ((*iter).has_param)
                             {
                                 int j = i + 1;
-                                if (j < nargc && nargv[j] != NULL)
+                                if (j < nargc && nargv[j] != nullptr)
                                 {
                                     (*iter).Value = nargv[j];
                                     remove_arg(&nargc, nargv, j);
@@ -344,7 +359,7 @@ namespace vfePlatform
                         }
                         else
                             i++;
-                        if (nargv[i] == NULL)
+                        if (nargv[i] == nullptr)
                             break;
                     }
                 }
@@ -365,7 +380,7 @@ namespace vfePlatform
         if (index >= *argc || index == 0)
             return;
 
-        if (argv[index] != NULL)
+        if (argv[index] != nullptr)
             free(argv[index]);
 
         for (; index < *argc; index++)
@@ -374,7 +389,7 @@ namespace vfePlatform
         (*argc)--;
     }
 
-    // based on 3.6 UNIX_getcwd()
+    // based on v3.6 UNIX_getcwd()
     string UnixOptionsProcessor::unix_getcwd(void)
     {
 #ifdef HAVE_GETCWD
@@ -383,14 +398,14 @@ namespace vfePlatform
         len = 256;  // default buffer size
         char *tmp = new char[len];
 
-        while(getcwd(tmp, len) == NULL)  // buffer is too small
+        while (getcwd(tmp, len) == nullptr)  // buffer is too small
         {
             delete[] tmp;
             len *= 2;  // double buffer size and try again
             tmp = new char[len];
         }
 #else
-        string tmp = getenv("PWD");  // must not be NULL; checked by configure
+        string tmp = std::getenv("PWD");  // must not be `nullptr`; checked by configure
         if(tmp.length() == 0)        // run-time checks are safer anyway
         {
             // TODO: correct error handling
@@ -400,7 +415,7 @@ namespace vfePlatform
             if(no_error_call)
             {
                 fprintf(stderr, "%s: %s\n", PACKAGE, errormsg);
-                exit(EXIT_FAILURE);
+                std::exit(EXIT_FAILURE);
             }
             else
                 Error("%s", errormsg);
@@ -416,7 +431,7 @@ namespace vfePlatform
         return s;
     }
 
-    // based on 3.6 unix_basename()
+    // based on v3.6 unix_basename()
     string UnixOptionsProcessor::basename(const string &path)
     {
         if(path.length() < 2) // less than two characters
@@ -432,7 +447,7 @@ namespace vfePlatform
         return s;
     }
 
-    // based on 3.6 unix_dirname()
+    // based on v3.6 unix_dirname()
     string UnixOptionsProcessor::dirname(const string &path)
     {
         if(path.length() < 2)  // less than two characters
@@ -448,7 +463,7 @@ namespace vfePlatform
         return s;
     }
 
-    // based on 3.6 unix_readlink()
+    // based on v3.6 unix_readlink()
     string UnixOptionsProcessor::unix_readlink(const string &path)
     {
 #ifdef HAVE_READLINK
@@ -497,17 +512,17 @@ namespace vfePlatform
 #endif
     }
 
-    // based on 3.6 UNIX_canonicalize_path()
+    // based on v3.6 UNIX_canonicalize_path()
     string UnixOptionsProcessor::CanonicalizePath(const string &path)
     {
         int   i;
-        typedef struct { const char *match, *replace; } subst;
+        struct subst final { const char *match, *replace; };
         const subst strings[] = {  // beware: order does matter
             { "%INSTALLDIR%", POVLIBDIR },
             { "%HOME%", m_home.c_str() },
             { "//", "/" },
             { "/./", "/" },
-            { NULL, NULL }  // sentinel
+            { nullptr, nullptr }  // sentinel
         };
 
         // nothing to canonicalize; return an empty string
@@ -601,7 +616,7 @@ namespace vfePlatform
         return s;
     }
 
-    // based on 3.6 pre_process_conf_line()
+    // based on v3.6 pre_process_conf_line()
     string UnixOptionsProcessor::pre_process_conf_line(const string &input)
     {
         string s = boost::trim_copy(input);
@@ -617,7 +632,7 @@ namespace vfePlatform
         return s;
     }
 
-    // based on 3.6 add_permitted_path()
+    // based on v3.6 add_permitted_path()
     void UnixOptionsProcessor::add_permitted_path(list<UnixPath> &paths, const string &input, const string &conf_name, unsigned long line_number)
     {
         char quote = 0;
@@ -692,7 +707,7 @@ namespace vfePlatform
             );
     }
 
-    // based on 3.6 unix_parse_conf_file()
+    // based on v3.6 unix_parse_conf_file()
     void UnixOptionsProcessor::parse_conf_file(std::istream &Stream, const string &conf_name, bool user_mode)
     {
         list<UnixPath> paths;
@@ -708,33 +723,33 @@ namespace vfePlatform
 
         typedef enum { NONE, FILE_IO, SHELLOUT, PERMITTED_PATHS, UNKNOWN } SectionVal;
         SectionVal section;
-        typedef struct Section { const char *label; const SectionVal value; } Section;
+        struct Section final { const char *label; const SectionVal value; };
         const Section sections[] =
         {
             { ""                   , NONE            },  // init
             { "[File I/O Security]", FILE_IO         },
             { "[Shellout Security]", SHELLOUT        },
             { "[Permitted Paths]"  , PERMITTED_PATHS },
-            { NULL                 , UNKNOWN         }   // sentinel
+            { nullptr              , UNKNOWN         }   // sentinel
         };
 
-        typedef struct IOSettings { const char *label; const FileIO value; } IOSettings;
+        struct IOSettings final { const char *label; const FileIO value; };
         const IOSettings io_settings[] =
         {
             { ""          , IO_UNSET      },
             { "none"      , IO_NONE       },
             { "read-only" , IO_READONLY   },
             { "restricted", IO_RESTRICTED },
-            { NULL        , IO_UNKNOWN    }
+            { nullptr     , IO_UNKNOWN    }
         };
 
-        typedef struct SHLSettings { const char *label; const ShellOut value; } SHLSettings;
+        struct SHLSettings final { const char *label; const ShellOut value; };
         const SHLSettings shl_settings[] =
         {
             { ""         , SHL_UNSET     },
             { "allowed"  , SHL_ALLOWED   },
             { "forbidden", SHL_FORBIDDEN },
-            { NULL       , SHL_UNKNOWN   }
+            { nullptr    , SHL_UNKNOWN   }
         };
 
         // inits
@@ -986,7 +1001,7 @@ namespace vfePlatform
         }
     }
 
-    // based on 3.6 unix_process_povray_conf()
+    // based on v3.6 unix_process_povray_conf()
     void UnixOptionsProcessor::process_povray_conf(void)
     {
         m_Session->ClearPaths();
@@ -1057,7 +1072,7 @@ namespace vfePlatform
     {
         FILE *file = fopen(name.c_str(), "r");
 
-        if(file != NULL)
+        if (file != nullptr)
             fclose(file);
         else
             return false;
@@ -1065,12 +1080,12 @@ namespace vfePlatform
         return true;
     }
 
-    // based on 3.6 unix_process_povray_ini()
+    // based on v3.6 unix_process_povray_ini()
     void UnixOptionsProcessor::Process_povray_ini(vfeRenderOptions &opts)
     {
         // try the file pointed to by POVINI
         string povini;
-        char * povini_c = getenv("POVINI");
+        char * povini_c = std::getenv("POVINI");
         if (povini_c)
         {
             povini = povini_c;
@@ -1124,7 +1139,7 @@ namespace vfePlatform
     }
 
 #if 0
-    // based on 3.6 unix_subdir()
+    // based on v3.6 unix_subdir()
     static bool UnixOptionsProcessor::file_in_permitted_paths (const string &Filename, bool write)
     {
         // NOTE: Filename must be already canonicalized
@@ -1215,3 +1230,4 @@ namespace vfePlatform
     }
 
 }
+// end of namespace vfePlatform

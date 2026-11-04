@@ -10,8 +10,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -36,29 +36,30 @@
 ///
 //*******************************************************************************
 
-#ifndef _DISP_H
-#define _DISP_H
+#ifndef POVRAY_UNIX_DISP_H
+#define POVRAY_UNIX_DISP_H
+
+#include <memory>
 
 #include "vfe.h"
-
-#include <boost/shared_ptr.hpp>
 
 namespace pov_frontend
 {
     using namespace vfe;
 
-    extern shared_ptr<Display> gDisplay;
+    extern std::shared_ptr<Display> gDisplay;
 
     class UnixDisplay : public vfeDisplay
     {
         public:
-            UnixDisplay(unsigned int w, unsigned int h, GammaCurvePtr gamma, vfeSession *session, bool visible) :
-                vfeDisplay(w, h, gamma, session, visible) {};
-            virtual ~UnixDisplay() {} ;
-            virtual void Initialise() = 0;
-            virtual void Close() = 0;
-            virtual void Show() = 0;
-            virtual void Hide() = 0;
+            UnixDisplay(unsigned int w, unsigned int h, vfeSession *session, bool visible) :
+                vfeDisplay(w, h, session, visible) {};
+            virtual ~UnixDisplay() override {} ;
+            virtual void Initialise() override = 0;
+            virtual void Close() override = 0;
+            virtual void Show() override = 0;
+            virtual void Hide() override = 0;
+
             virtual bool TakeOver(UnixDisplay *display) = 0;
 
             /**
@@ -95,10 +96,11 @@ namespace pov_frontend
     inline UnixDisplay *GetRenderWindow (void)
     {
         Display *p = gDisplay.get();
-        if (p == NULL)
-            return NULL;
+        if (p == nullptr)
+            return nullptr;
         return dynamic_cast<UnixDisplay *>(p) ;
     }
 }
+// end of namespace pov_frontend
 
-#endif
+#endif // POVRAY_UNIX_DISP_H

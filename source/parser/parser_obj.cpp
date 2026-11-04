@@ -7,8 +7,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -38,36 +38,52 @@
 
 #if POV_PARSER_EXPERIMENTAL_OBJ_IMPORT
 
+// C++ variants of C standard header files
 #include <cctype>
 
+// C++ standard header files
+#include <algorithm>
+
+// POV-Ray header files (base module)
+//  (none at the moment)
+
+// POV-Ray header files (core module)
 #include "core/material/interior.h"
 #include "core/shape/mesh.h"
+
+// POV-Ray header files (parser module)
+//  (none at the moment)
 
 // this must be the last file included
 #include "base/povdebug.h"
 
-namespace pov
+namespace pov_parser
 {
+
+using namespace pov;
+
+using std::max;
+using std::vector;
 
 static const int kMaxObjBufferSize = 1024;
 
 #define PAIR(c1,c2)         ( ((int)(c1)) + (((int)(c2))<<8) )
 #define TRIPLET(c1,c2,c3)   ( ((int)(c1)) + (((int)(c2))<<8) + (((int)(c3))<<16) )
 
-struct FaceVertex
+struct FaceVertex final
 {
     MeshIndex vertexId;
     MeshIndex normalId;
     MeshIndex uvId;
 };
 
-struct FaceData
+struct FaceData final
 {
     FaceVertex vertexList[3];
     MeshIndex materialId;
 };
 
-struct MaterialData
+struct MaterialData final
 {
     std::string mtlName;
     TEXTURE *texture;
@@ -113,7 +129,8 @@ inline static bool ReadFloat (DBL& result, char *buffer, pov_base::ITextStream *
 {
     if (!ReadWord (buffer, file))
         return false;
-    if (sscanf (buffer, POV_DBL_FORMAT_STRING, &result) == 0)
+    // Not just == 0: the Windows C runtime returns EOF for "1e", "-", "+" and ".".
+    if (sscanf (buffer, POV_DBL_FORMAT_STRING, &result) != 1)
         return false;
     return true;
 }
@@ -171,8 +188,8 @@ void Parser::Parse_Obj (Mesh* mesh)
     UCS2 *fileName;
     char *s;
     UCS2String ign;
-    IStream *stream = NULL;
-    pov_base::ITextStream *textStream = NULL;
+    shared_ptr<IStream> stream;
+    pov_base::ITextStream *textStream = nullptr;
     char wordBuffer [kMaxObjBufferSize];
     std::string materialPrefix;
     std::string materialSuffix;
@@ -260,14 +277,10 @@ void Parser::Parse_Obj (Mesh* mesh)
     // open obj file
 
     stream = Locate_File (fileName, POV_File_Text_OBJ, ign, true);
-    if (stream)
-    {
-        textStream = new IBufferedTextStream (fileName, stream);
-        if (!textStream)
-            delete stream;
-    }
+    if (stream != nullptr)
+        textStream = new IBufferedTextStream (fileName, stream.get());
     if (!textStream)
-        Error ("Cannot open obj file %s.", UCS2toASCIIString(fileName).c_str());
+        Error ("Cannot open obj file %s.", UCS2toSysString(fileName).c_str());
 
     // mark end of buffer with a non-null character to identify situations where a word may not have fit entirely inside the buffer.
     wordBuffer[kMaxObjBufferSize-1] = '*';
@@ -304,13 +317,13 @@ void Parser::Parse_Obj (Mesh* mesh)
                     while (HasMoreWords (textStream))
                     {
                         if (!ReadFaceVertex (face.vertexList[vertex], wordBuffer, textStream))
-                            Error ("Invalid or unsupported face index data '%s' in obj file %s line %i", wordBuffer, UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+                            Error ("Invalid or unsupported face index data '%s' in obj file %s line %i", wordBuffer, UCS2toSysString(fileName).c_str(), (int)textStream->line());
                         if (face.vertexList[vertex].vertexId > vertexList.size())
-                            Error ("Vertex index out of range in obj file %s line %i", UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+                            Error ("Vertex index out of range in obj file %s line %i", UCS2toSysString(fileName).c_str(), (int)textStream->line());
                         if (face.vertexList[vertex].uvId > uvList.size())
-                            Error ("UV index out of range in obj file %s line %i", UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+                            Error ("UV index out of range in obj file %s line %i", UCS2toSysString(fileName).c_str(), (int)textStream->line());
                         if (face.vertexList[vertex].normalId > normalList.size())
-                            Error ("Normal index out of range in obj file %s line %i", UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+                            Error ("Normal index out of range in obj file %s line %i", UCS2toSysString(fileName).c_str(), (int)textStream->line());
                         ++haveVertices;
                         if (face.vertexList[vertex].uvId > 0)
                             ++haveUV;
@@ -330,15 +343,15 @@ void Parser::Parse_Obj (Mesh* mesh)
                     }
                     if ((haveVertices > 3) && !havePolygonFaces)
                     {
-                        Warning ("Non-triangular faces found in obj file %s. Faces will only import properly if they are convex and planar.", UCS2toASCIIString(fileName).c_str());
+                        Warning ("Non-triangular faces found in obj file %s. Faces will only import properly if they are convex and planar.", UCS2toSysString(fileName).c_str());
                         havePolygonFaces = true;
                     }
                     if (haveVertices < 3)
-                        Error ("Insufficient number of vertices per face in obj file %s line %i", UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+                        Error ("Insufficient number of vertices per face in obj file %s line %i", UCS2toSysString(fileName).c_str(), (int)textStream->line());
                     if ((haveUV != 0) && (haveUV != haveVertices))
-                        Error ("Inconsistent use of UV indices in obj file %s line %i", UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+                        Error ("Inconsistent use of UV indices in obj file %s line %i", UCS2toSysString(fileName).c_str(), (int)textStream->line());
                     if ((haveNormal != 0) && (haveNormal != haveVertices))
-                        Error ("Inconsistent use of normal indices in obj file %s line %i", UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+                        Error ("Inconsistent use of normal indices in obj file %s line %i", UCS2toSysString(fileName).c_str(), (int)textStream->line());
                     if (haveNormal > 0)
                         faceList.push_back (face);
                     else
@@ -360,7 +373,7 @@ void Parser::Parse_Obj (Mesh* mesh)
                 if (strcmp (wordBuffer, "usemtl") == 0)
                 {
                     if (!ReadWord (wordBuffer, textStream))
-                        Error ("Invalid material name '%s' in obj file %s line %i", wordBuffer, UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+                        Error ("Invalid material name '%s' in obj file %s line %i", wordBuffer, UCS2toSysString(fileName).c_str(), (int)textStream->line());
                     for (materialId = 0; materialId < materialList.size(); ++materialId)
                     {
                         if (materialList[materialId].mtlName.compare (wordBuffer) == 0)
@@ -369,10 +382,10 @@ void Parser::Parse_Obj (Mesh* mesh)
                     if (materialId == materialList.size())
                     {
                         material.mtlName = wordBuffer;
-                        material.texture = NULL;
+                        material.texture = nullptr;
                         std::string identifier = materialPrefix + std::string(wordBuffer) + materialSuffix;
-                        SYM_ENTRY *symbol = Find_Symbol (identifier.c_str());
-                        if (symbol == NULL)
+                        SYM_ENTRY *symbol = mSymbolStack.Find_Symbol (identifier.c_str());
+                        if (symbol == nullptr)
                             Error ("No matching texture for obj file material '%s': Identifier '%s' not found.", wordBuffer, identifier.c_str());
                         else if (symbol->Token_Number == TEXTURE_ID_TOKEN)
                             material.texture = Copy_Textures(reinterpret_cast<TEXTURE *>(symbol->Data));
@@ -393,7 +406,7 @@ void Parser::Parse_Obj (Mesh* mesh)
                 for (int dimension = X; dimension <= Z; ++dimension)
                 {
                     if (!ReadFloat (v3[dimension], wordBuffer, textStream))
-                        Error ("Invalid coordinate value '%s' in obj file %s line %i", wordBuffer, UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+                        Error ("Invalid coordinate value '%s' in obj file %s line %i", wordBuffer, UCS2toSysString(fileName).c_str(), (int)textStream->line());
                 }
                 vertexList.push_back (v3);
                 break;
@@ -402,7 +415,7 @@ void Parser::Parse_Obj (Mesh* mesh)
                 for (int dimension = X; dimension <= Z; ++dimension)
                 {
                     if (!ReadFloat (v3[dimension], wordBuffer, textStream))
-                        Error ("Invalid coordinate value '%s' in obj file %s line %i", wordBuffer, UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+                        Error ("Invalid coordinate value '%s' in obj file %s line %i", wordBuffer, UCS2toSysString(fileName).c_str(), (int)textStream->line());
                 }
                 normalList.push_back (v3);
                 break;
@@ -411,7 +424,7 @@ void Parser::Parse_Obj (Mesh* mesh)
                 for (int dimension = X; dimension <= Y; ++dimension)
                 {
                     if (!ReadFloat (v2[dimension], wordBuffer, textStream))
-                        Error ("Invalid coordinate value '%s' in obj file %s line %i", wordBuffer, UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+                        Error ("Invalid coordinate value '%s' in obj file %s line %i", wordBuffer, UCS2toSysString(fileName).c_str(), (int)textStream->line());
                 }
                 uvList.push_back (v2);
                 break;
@@ -423,18 +436,18 @@ void Parser::Parse_Obj (Mesh* mesh)
 
         if (unsupportedCmd)
         {
-            Warning("Unsupported command '%s' skipped in obj file %s line %i.", wordBuffer, UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+            Warning("Unsupported command '%s' skipped in obj file %s line %i.", wordBuffer, UCS2toSysString(fileName).c_str(), (int)textStream->line());
             skipLine = true;
         }
 
         if (!skipLine && HasMoreWords (textStream))
-            PossibleError("Unexpected extra data skipped in obj file %s line %i.", UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+            PossibleError("Unexpected extra data skipped in obj file %s line %i.", UCS2toSysString(fileName).c_str(), (int)textStream->line());
 
         // skip remainder of line
         AdvanceLine (textStream);
 
         if (wordBuffer[kMaxObjBufferSize-1] == '\0')
-            PossibleError("Excessively long data in obj file %s line %i.", UCS2toASCIIString(fileName).c_str(), (int)textStream->line());
+            PossibleError("Excessively long data in obj file %s line %i.", UCS2toSysString(fileName).c_str(), (int)textStream->line());
     }
 
     // close obj file
@@ -443,11 +456,11 @@ void Parser::Parse_Obj (Mesh* mesh)
     size_t smoothFaces = faceList.size();
     faceList.insert (faceList.end(), flatFaceList.begin(), flatFaceList.end());
 
-    MeshVector *vertexArray = NULL;
-    MeshVector *normalArray = NULL;
-    MeshUVVector *uvArray = NULL;
-    TEXTURE **textureArray = NULL;
-    MESH_TRIANGLE *triangleArray = NULL;
+    MeshVector *vertexArray = nullptr;
+    MeshVector *normalArray = nullptr;
+    MeshUVVector *uvArray = nullptr;
+    TEXTURE **textureArray = nullptr;
+    MESH_TRIANGLE *triangleArray = nullptr;
 
     if (vertexList.empty())
         Error ("No vertices in obj file.");
@@ -545,7 +558,7 @@ void Parser::Parse_Obj (Mesh* mesh)
 
     mesh->Data = reinterpret_cast<MESH_DATA *>(POV_MALLOC(sizeof(MESH_DATA), "triangle mesh data"));
     mesh->Data->References = 1;
-    mesh->Data->Tree = NULL;
+    mesh->Data->Tree = nullptr;
 
     mesh->has_inside_vector = insideVector.IsNearNull (EPSILON);
     if (mesh->has_inside_vector)
@@ -576,5 +589,6 @@ void Parser::Parse_Obj (Mesh* mesh)
 }
 
 }
+// end of namespace pov_parser
 
 #endif // POV_PARSER_EXPERIMENTAL_OBJ_IMPORT

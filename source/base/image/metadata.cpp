@@ -7,8 +7,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -36,7 +36,13 @@
 // Unit header file must be the first file included within POV-Ray *.cpp files (pulls in config)
 #include "base/image/metadata.h"
 
-// POV-Ray base header files
+// C++ variants of C standard header files
+#include <cstdio>
+
+// C++ standard header files
+//  (none at the moment)
+
+// POV-Ray header files (base module)
 #include "base/version_info.h"
 
 // this must be the last file included
@@ -47,94 +53,97 @@ namespace pov_base
 
 Metadata::Metadata()
 {
-    boost::posix_time::ptime timestamp = boost::posix_time::second_clock::universal_time();
-    date = timestamp.date();
-    time = timestamp.time_of_day();
+    mTimestamp = boost::posix_time::second_clock::universal_time();
 }
 
 Metadata::~Metadata()
 {}
 
-string Metadata::getSoftware() const
+std::string Metadata::getSoftware() const
 {
-    return "POV-Ray " POV_RAY_SOURCE_VERSION;
+    return "POV-Ray v" POV_RAY_SOURCE_VERSION;
 }
 
-string Metadata::getComment1() const
+std::string Metadata::getComment1() const
 {
 #ifdef METADATA_PLATFORM_STRING
     // METADATA_PLATFORM_STRING should be in a form similar to 'i686-pc-linux-gnu', 'i386-pc-win', etc.
-    return string("Platform: ") + METADATA_PLATFORM_STRING;
+    return std::string("Platform: ") + METADATA_PLATFORM_STRING;
 #else
-    return string();
+    return std::string();
 #endif
 }
 
-string Metadata::getComment2() const
+std::string Metadata::getComment2() const
 {
 #ifdef METADATA_COMPILER_STRING
     // METADATA_COMPILER_STRING should be in a form similar to 'g++ 4.4.3', 'msvc 10.0', etc.
-    return string("Compiler: ") + METADATA_COMPILER_STRING;
+    return std::string("Compiler: ") + METADATA_COMPILER_STRING;
 #else
-    return string();
+    return std::string();
 #endif
 }
 
-string Metadata::getComment3() const
+std::string Metadata::getComment3() const
 {
 #ifdef METADATA_COMMENT_3
     // NB it is legal for METADATA_COMMENT_3 to be a function returning string
     // Note that it may be called more than once
-    return string(METADATA_COMMENT_3);
+    return std::string(METADATA_COMMENT_3);
 #else
-    return string();
+    return std::string();
 #endif
 }
 
-string Metadata::getComment4() const
+std::string Metadata::getComment4() const
 {
 #ifdef METADATA_COMMENT_4
     // NB it is legal for METADATA_COMMENT_4 to be a function returning string
     // Note that it may be called more than once
-    return string(METADATA_COMMENT_4);
+    return std::string(METADATA_COMMENT_4);
 #else
-    return string();
+    return std::string();
 #endif
 }
 
-string Metadata::getDateTime() const
+std::string Metadata::getDateTime() const
 {
-    return to_iso_extended_string(date) + " " + to_simple_string(time) + "Z";
+    // Not using boost's `to_iso_extended_string` because that would mean we couldn't reliably
+    // get away with using the boost date_time library in header-only mode.
+    char s[21]; // 10 (date) + 1 (blank) + 8 (time) + 1 (timezone "Z") + 1 (trailing NUL)
+    std::snprintf(s, sizeof(s), "%04d-%02d-%02d %02d:%02d:%02dZ", getYear(), getMonth(), getDay(), getHour(), getMin(), getSec());
+    return std::string(s);
 }
 
 int Metadata::getYear() const
 {
-    return date.year();
+    return mTimestamp.date().year();
 }
 
 int Metadata::getMonth() const
 {
-    return date.month();
+    return mTimestamp.date().month();
 }
 
 int Metadata::getDay() const
 {
-    return date.day();
+    return mTimestamp.date().day();
 }
 
 int Metadata::getHour() const
 {
-    return time.hours();
+    return mTimestamp.time_of_day().hours();
 }
 
 int Metadata::getMin() const
 {
-    return time.minutes();
+    return mTimestamp.time_of_day().minutes();
 }
 
 int Metadata::getSec() const
 {
-    return time.seconds();
+    return mTimestamp.time_of_day().seconds();
 }
 
 }
+// end of namespace pov_base

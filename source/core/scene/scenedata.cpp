@@ -7,8 +7,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2017 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -36,14 +36,20 @@
 // Unit header file must be the first file included within POV-Ray *.cpp files (pulls in config)
 #include "core/scene/scenedata.h"
 
+// C++ variants of C standard header files
+//  (none at the moment)
+
+// C++ standard header files
 #include <sstream>
 
-#include <boost/bind.hpp>
-
+// POV-Ray header files (base module)
+#include "base/types.h"
 #include "base/version_info.h"
+#include "base/image/colourspace.h"
 
-#include "core/material/pattern.h"
+// POV-Ray header files (core module)
 #include "core/material/noise.h"
+#include "core/material/pattern.h"
 #include "core/scene/atmosphere.h"
 
 // this must be the last file included
@@ -53,9 +59,9 @@ namespace pov
 {
 
 SceneData::SceneData() :
-    fog(NULL),
-    rainbow(NULL),
-    skysphere(NULL),
+    fog(nullptr),
+    rainbow(nullptr),
+    skysphere(nullptr),
     functionContextFactory()
 {
     atmosphereIOR = 1.0;
@@ -65,11 +71,11 @@ SceneData::SceneData() :
 
     iridWavelengths = MathColour::DefaultWavelengths();
 
-    languageVersion = OFFICIAL_VERSION_NUMBER;
+    languageVersion = POV_RAY_VERSION_INT;
     languageVersionSet = false;
     languageVersionLate = false;
     warningLevel = 10; // all warnings
-    stringEncoding = kStringEncoding_ASCII;
+    legacyCharset = LegacyCharset::kUnspecified;
     noiseGenerator = kNoiseGen_RangeCorrected;
     explicitNoiseGenerator = false; // scene has not set the noise generator explicitly
     boundingMethod = 0;
@@ -78,9 +84,8 @@ SceneData::SceneData() :
     parsedAdcBailout = 1.0 / 255.0; // adc bailout sufficient for displays
     workingGamma.reset();
     workingGammaToSRGB.reset();
-    inputFileGammaSet = false; // TODO remove for 3.7x
     inputFileGamma = SRGBGammaCurve::Get();
-    gammaMode = kPOVList_GammaMode_None; // default setting for 3.62, which in turn is the default for the language
+    gammaMode = kPOVList_GammaMode_None; // default setting for v3.6.2, which in turn is the default for the language
 
     mmPerUnit = 10;
     useSubsurface = false;
@@ -94,12 +99,12 @@ SceneData::SceneData() :
     Fractal_Iteration_Stack_Length = 0;
     Max_Blob_Components = 1000; // TODO FIXME - this gets set in the parser but allocated *before* that in the scene data, and if it is 0 here, a malloc may fail there because the memory requested is zero [trf]
     Max_Bounding_Cylinders = 100; // TODO FIXME - see note for Max_Blob_Components
-    boundingSlabs = NULL;
+    boundingSlabs = nullptr;
 
     splitUnions = false;
     removeBounds = true;
 
-    tree = NULL;
+    tree = nullptr;
 }
 
 SceneData::~SceneData()
@@ -107,28 +112,29 @@ SceneData::~SceneData()
     lightSources.clear();
     lightGroupLightSources.clear();
     Destroy_Skysphere(skysphere);
-    while (fog != NULL)
+    while (fog != nullptr)
     {
         FOG *next = fog->Next;
         Destroy_Fog(fog);
         fog = next;
     }
-    while (rainbow != NULL)
+    while (rainbow != nullptr)
     {
         RAINBOW *next = rainbow->Next;
         Destroy_Rainbow(rainbow);
         rainbow = next;
     }
-    if(boundingSlabs != NULL)
+    if (boundingSlabs != nullptr)
         Destroy_BBox_Tree(boundingSlabs);
-    for (vector<TrueTypeFont*>::iterator i = TTFonts.begin(); i != TTFonts.end(); ++i)
+    for (std::vector<TrueTypeFont*>::iterator i = TTFonts.begin(); i != TTFonts.end(); ++i)
         delete *i;
     // TODO: perhaps ObjectBase::~ObjectBase would be a better place
     //       to handle cleanup of individual objects ?
     Destroy_Object(objects);
 
-    if(tree != NULL)
+    if (tree != nullptr)
         delete tree;
 }
 
 }
+// end of namespace pov

@@ -9,8 +9,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2017 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2021 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -53,11 +53,12 @@ namespace pov_frontend
 {
   extern struct ProcessOptions::INI_Parser_Table RenderOptions_INI_Table[];
 }
+// end of namespace pov_frontend
 
 namespace povwin
 {
 
-using namespace pov;
+using namespace pov_parser;
 
 HINSTANCE               hLibPovEdit ;
 
@@ -312,7 +313,7 @@ char *Get_User_Keywords(const char *DocumentsPath)
   char        str[_MAX_PATH];
   char        *s;
   FILE        *f;
-  string      result;
+  std::string result;
 
   sprintf(str, "%sini\\user-keywords.txt", DocumentsPath);
   if ((f = fopen(str, "rt")) == NULL)
@@ -571,3 +572,4 @@ const char **EditGetWindowList (void)
 }
 
 }
+// end of namespace povwin

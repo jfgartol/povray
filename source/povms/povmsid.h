@@ -8,8 +8,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2017 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2018 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -276,6 +276,7 @@ enum
 
     // backend init
     kPOVAttrib_CoreVersion           = 'Core',
+    kPOVAttrib_CoreGeneration        = 'CorG',
     kPOVAttrib_PlatformName          = 'Plat',
     kPOVAttrib_Official              = 'Offi',
     kPOVAttrib_PrimaryDevs           = 'Prim',
@@ -384,6 +385,7 @@ enum
     kPOVAttrib_Antialias             = 'Anti',
     kPOVAttrib_SamplingMethod        = 'AASM',
     kPOVAttrib_AntialiasThreshold    = 'AATh',
+    kPOVAttrib_AntialiasConfidence   = 'AACo',
     kPOVAttrib_AntialiasDepth        = 'AADe',
     kPOVAttrib_Jitter                = 'AAJi',
     kPOVAttrib_JitterAmount          = 'AAJA',
@@ -391,6 +393,7 @@ enum
     kPOVAttrib_AntialiasGammaType    = 'AAGT', // currently not supported by code
     kPOVAttrib_Quality               = 'Qual',
     kPOVAttrib_HighReproducibility   = 'HRep',
+    kPOVAttrib_StochasticSeed        = 'Seed',
 
     kPOVAttrib_Bounding              = 'Boun',
     kPOVAttrib_BoundingMethod        = 'BdMe',

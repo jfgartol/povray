@@ -7,8 +7,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -36,7 +36,14 @@
 // Unit header file must be the first file included within POV-Ray *.cpp files (pulls in config)
 #include "base/animation/moov.h"
 
-// POV-Ray base header files
+// C++ variants of C standard header files
+//  (none at the moment)
+
+// C++ standard header files
+#include <algorithm>
+
+// POV-Ray header files (base module)
+#include "base/fileinputoutput.h"
 #include "base/pov_err.h"
 #include "base/types.h"
 #include "base/animation/animation.h"
@@ -49,7 +56,7 @@ namespace pov_base
 
 typedef POV_INT32 Type; // TODO - this is a lousy type name
 
-struct PrivateData
+struct PrivateData final
 {
     unsigned int width;
     unsigned int height;
@@ -57,39 +64,39 @@ struct PrivateData
     bool alphachannel;
     int timescale;
     int frameduration;
-    POV_LONG mdatsize;
-    vector<int> imagesizes;
+    POV_OFF_T mdatsize;
+    std::vector<int> imagesizes;
 };
 
 namespace Moov
 {
 
-void WriteAtomHeader(OStream *file, Type type, POV_LONG size);
+void WriteAtomHeader(OStream *file, Type type, POV_OFF_T size);
 void WriteType(OStream *file, Type data);
 void WriteInt2(OStream *file, POV_INT16 data);
 void WriteInt4(OStream *file, POV_INT32 data);
 void WriteInt8(OStream *file, POV_INT64 data);
 void WriteN(OStream *file, size_t cnt, POV_INT8 data);
 
-void *ReadFileHeader(IStream *file, float& lengthinseconds, unsigned int& lengthinframes, Animation::CodecType& codec, unsigned int& w, unsigned int& h, const Animation::ReadOptions& options, vector<string>& warnings)
+void *ReadFileHeader(IStream *file, float& lengthinseconds, unsigned int& lengthinframes, Animation::CodecType& codec, unsigned int& w, unsigned int& h, const Animation::ReadOptions& options, std::vector<std::string>& warnings)
 {
     throw POV_EXCEPTION(kCannotHandleDataErr, "Reading QuickTime movie files is not supported (yet)!");
-    return NULL;
+    return nullptr;
 }
 
-void PreReadFrame(IStream *file, unsigned int frame, POV_LONG& bytes, Animation::CodecType& codec, const Animation::ReadOptions& options, vector<string>& warnings, void *state)
+void PreReadFrame(IStream *file, unsigned int frame, POV_OFF_T& bytes, Animation::CodecType& codec, const Animation::ReadOptions& options, std::vector<std::string>& warnings, void *state)
 {
 }
 
-void PostReadFrame(IStream *file, unsigned int frame, POV_LONG bytes, Animation::CodecType& codec, const Animation::ReadOptions& options, vector<string>& warnings, void *state)
+void PostReadFrame(IStream *file, unsigned int frame, POV_OFF_T bytes, Animation::CodecType& codec, const Animation::ReadOptions& options, std::vector<std::string>& warnings, void *state)
 {
 }
 
-void FinishReadFile(IStream *file, vector<string>& warnings, void *state)
+void FinishReadFile(IStream *file, std::vector<std::string>& warnings, void *state)
 {
 }
 
-void *WriteFileHeader(OStream *file, Animation::CodecType& codec, unsigned int w, unsigned int h, const Animation::WriteOptions& options, vector<string>& warnings)
+void *WriteFileHeader(OStream *file, Animation::CodecType& codec, unsigned int w, unsigned int h, const Animation::WriteOptions& options, std::vector<std::string>& warnings)
 {
     PrivateData pd;
 
@@ -118,7 +125,7 @@ void *WriteFileHeader(OStream *file, Animation::CodecType& codec, unsigned int w
             pd.alphachannel = false;
             break;
         default:
-            return NULL; // error - cannot handle format
+            return nullptr; // error - cannot handle format
     }
 
     if(pd.alphachannel != options.alphachannel)
@@ -135,7 +142,7 @@ void *WriteFileHeader(OStream *file, Animation::CodecType& codec, unsigned int w
             break;
     }
 
-    pd.timescale = max(int(double(options.framespersecond) * double(m)), 1);
+    pd.timescale = std::max(int(double(options.framespersecond) * double(m)), 1);
 
     // frame duration according to time scale
 
@@ -149,25 +156,25 @@ void *WriteFileHeader(OStream *file, Animation::CodecType& codec, unsigned int w
 
     // NOTE: This allocation occurs at the end such that there cannot be a memory leak
     // should any of the previous operations fail. If and only if this function returns
-    // a state other than NULL shall it be assumed to have been successful!
+    // a state other than `nullptr` shall it be assumed to have been successful!
     return reinterpret_cast<void *>(new PrivateData(pd));
 }
 
-void PreWriteFrame(OStream *, const Animation::WriteOptions&, vector<string>&, void *state)
+void PreWriteFrame(OStream *, const Animation::WriteOptions&, std::vector<std::string>&, void *state)
 {
     PrivateData *pd = reinterpret_cast<PrivateData *>(state);
 
-    if(pd == NULL)
+    if (pd == nullptr)
         throw POV_EXCEPTION_CODE(kNullPointerErr);
 
     // there really is nothing to do here [trf]
 }
 
-void PostWriteFrame(OStream *file, POV_LONG bytes, const Animation::WriteOptions&, vector<string>&, void *state)
+void PostWriteFrame(OStream *file, POV_OFF_T bytes, const Animation::WriteOptions&, std::vector<std::string>&, void *state)
 {
     PrivateData *pd = reinterpret_cast<PrivateData *>(state);
 
-    if(pd == NULL)
+    if (pd == nullptr)
         throw POV_EXCEPTION_CODE(kNullPointerErr);
 
     // update mdat size
@@ -184,27 +191,27 @@ void PostWriteFrame(OStream *file, POV_LONG bytes, const Animation::WriteOptions
     pd->imagesizes.push_back(int(bytes));
 }
 
-void FinishWriteFile(OStream *file, const Animation::WriteOptions& options, vector<string>& warnings, void *state)
+void FinishWriteFile(OStream *file, const Animation::WriteOptions& options, std::vector<std::string>& warnings, void *state)
 {
     PrivateData *pd = reinterpret_cast<PrivateData *>(state);
 
-    if(pd == NULL)
+    if (pd == nullptr)
         throw POV_EXCEPTION_CODE(kNullPointerErr);
 
-    POV_LONG stsz_size = 20 + (pd->imagesizes.size() * 4);
-    POV_LONG stsc_size = 28;
-    POV_LONG stts_size = 32;
-    POV_LONG stsd_size = 102;
-    POV_LONG stbl_size = 8 + stsd_size + stts_size + stsc_size + stsz_size;
-    POV_LONG vmhd_size = 20;
-    POV_LONG minf_size = 8 + vmhd_size + stbl_size;
-    POV_LONG hdlr_size = 32;
-    POV_LONG mdhd_size = 32;
-    POV_LONG mdia_size = 8 + mdhd_size + hdlr_size + minf_size;
-    POV_LONG tkhd_size = 112;
-    POV_LONG trak_size = 8 + tkhd_size + mdia_size;
-    POV_LONG mvhd_size = 108;
-    POV_LONG moov_size = 8 + mvhd_size + trak_size;
+    POV_OFF_T stsz_size = 20 + (pd->imagesizes.size() * 4);
+    POV_OFF_T stsc_size = 28;
+    POV_OFF_T stts_size = 32;
+    POV_OFF_T stsd_size = 102;
+    POV_OFF_T stbl_size = 8 + stsd_size + stts_size + stsc_size + stsz_size;
+    POV_OFF_T vmhd_size = 20;
+    POV_OFF_T minf_size = 8 + vmhd_size + stbl_size;
+    POV_OFF_T hdlr_size = 32;
+    POV_OFF_T mdhd_size = 32;
+    POV_OFF_T mdia_size = 8 + mdhd_size + hdlr_size + minf_size;
+    POV_OFF_T tkhd_size = 112;
+    POV_OFF_T trak_size = 8 + tkhd_size + mdia_size;
+    POV_OFF_T mvhd_size = 108;
+    POV_OFF_T moov_size = 8 + mvhd_size + trak_size;
 
     int duration = pd->frameduration * pd->imagesizes.size();
 
@@ -372,13 +379,13 @@ void FinishWriteFile(OStream *file, const Animation::WriteOptions& options, vect
     WriteInt4(file, 0); // sample size (all samples have different sizes, so this needs to be zero)
     WriteInt4(file, pd->imagesizes.size()); // number of entries
 
-    for(vector<int>::const_iterator i = pd->imagesizes.begin(); i != pd->imagesizes.end(); i++)
+    for(std::vector<int>::const_iterator i = pd->imagesizes.begin(); i != pd->imagesizes.end(); i++)
         WriteInt4(file, *i); // sample size entry
 
     delete pd;
 }
 /*
-void ReadAtomHeader(IStream *file, Type& type, POV_LONG& size)
+void ReadAtomHeader(IStream *file, Type& type, POV_OFF_T& size)
 {
     ReadInt4(file, size);
 
@@ -386,7 +393,7 @@ void ReadAtomHeader(IStream *file, Type& type, POV_LONG& size)
     {
         ReadType(file, type);
 
-        POV_LONG t = file->tellg();
+        POV_OFF_T t = file->tellg();
         file->seekg(0, IOBase::seek_end);
         size = file->tellg() - t + 8;
         file->seekg(t, IOBase::seek_set);
@@ -401,7 +408,7 @@ void ReadAtomHeader(IStream *file, Type& type, POV_LONG& size)
         ReadType(file, type);
 }
 */
-void WriteAtomHeader(OStream *file, Type type, POV_LONG size)
+void WriteAtomHeader(OStream *file, Type type, POV_OFF_T size)
 {
     if(size < 0) // temporary size - always assume 64-bit size
     {
@@ -463,5 +470,7 @@ void WriteN(OStream *file, size_t cnt, POV_INT8 data)
 }
 
 }
+// end of namespace Moov
 
 }
+// end of namespace pov_base

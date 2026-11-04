@@ -9,8 +9,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -38,6 +38,7 @@
 #ifndef POVRAY_FRONTEND_CONFIGFRONTEND_H
 #define POVRAY_FRONTEND_CONFIGFRONTEND_H
 
+// Pull in other compile-time config header files first
 #include "base/configbase.h"
 #include "syspovconfigfrontend.h"
 
@@ -80,7 +81,7 @@
 #endif
 
 /// @def DEFAULT_DISPLAY_GAMMA
-/// Gamma curve numerial parameter.
+/// Gamma curve numerical parameter.
 ///
 /// If @ref DEFAULT_DISPLAY_GAMMA_TYPE is set to @ref kPOVList_GammaType_PowerLaw,
 /// this is the overall effective gamma of the display system.

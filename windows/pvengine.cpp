@@ -9,8 +9,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2017 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2021 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -70,12 +70,18 @@
 #include <crtdbg.h>
 #include <psapi.h>
 #include <dbghelp.h>
+#include <io.h>
 
 // #define DEVELOPMENT
 
+#include <cstdarg>
 #include <cstdlib>
 #include <cstdio>
 #include <tchar.h>
+
+#include <memory>
+#include <mutex>
+
 #include "pvengine.h"
 #include "resource.h"
 #include "pvdialog.h"
@@ -128,8 +134,9 @@ char *WriteDump(struct _EXCEPTION_POINTERS *pExceptionInfo, bool full, long time
 
 namespace pov_frontend
 {
-  extern shared_ptr<Display> gDisplay;
+  extern std::shared_ptr<Display> gDisplay;
 }
+// end of namespace pov_frontend
 
 using namespace pov;
 using namespace pov_frontend;
@@ -163,8 +170,8 @@ bool                    IsExpired;
 bool                    BackendFailedFlag = false;
 bool                    PreventSleep = true;
 char                    DumpMeta[65536];
-string                  ErrorMessage ;
-string                  ErrorFilename ;
+std::string             ErrorMessage ;
+std::string             ErrorFilename ;
 unsigned                ErrorLine ;
 unsigned                ErrorCol ;
 unsigned                render_priority = CM_RENDERPRIORITY_NORMAL ;
@@ -315,7 +322,7 @@ HICON                   ourIcon ;
 HICON                   renderIcon ;
 HFONT                   about_font ;
 HANDLE                  hMainThread ;
-string                  InputFileName ;
+std::string             InputFileName ;
 time_t                  SecondCountStart ;
 time_t                  quit ;
 HBITMAP                 hBmpBackground ;
@@ -367,8 +374,8 @@ CRITICAL_SECTION        critical_section ;
 
 // key is the name of an included file (all lower case).
 // content is the name of the most recent rendered file that caused it to be included.
-map<string, string>     IncludeToSourceMap;
-map<string, bool>       IncludeAlternateDecisionMap;
+map<std::string, std::string> IncludeToSourceMap;
+map<std::string, bool>  IncludeAlternateDecisionMap;
 
 char                    queued_files [MAX_QUEUE] [_MAX_PATH] ;
 char                    dir [_MAX_PATH] ;
@@ -419,6 +426,16 @@ char                    *AboutURLs[NUM_ABOUT_LINKS] =
                           "http://www.perforce.com/",
                           "http://softwarefreedom.org/",
                           "http://softwarefreedom.org/"
+                        };
+
+const char              *CanInheritFromVersions[] =
+                        {
+#ifdef POVRAY_IS_BETA
+                          "v" POV_RAY_GENERATION,
+#endif
+                          "v3.7",
+                          "v3.6",
+                          NULL // end of list
                         };
 
 bool handle_main_command (WPARAM wParam, LPARAM lParam) ;
@@ -484,12 +501,12 @@ SCROLLKEYS key2scroll [] =
   { -1,       -1,         -1          }
 } ;
 
-string StripFilePath (const string& str)
+std::string StripFilePath (const std::string& str)
 {
-  string::size_type pos  = str.find_last_of ("\\/") ;
-  if (pos == string::npos)
+  std::string::size_type pos  = str.find_last_of ("\\/") ;
+  if (pos == std::string::npos)
     return (str) ;
-  return string (str, pos + 1) ;
+  return std::string(str, pos + 1);
 }
 
 bool StripPathComponent (char *path, int number)
@@ -551,7 +568,7 @@ void WIN32_DEBUG_FILE_OUTPUT (const char *format,...)
 {
   va_list               arg_ptr ;
   static FILE           *f ;
-  static boost::mutex   mtx;
+  static std::mutex     mtx;
 
   if (format == NULL)
   {
@@ -570,7 +587,7 @@ void WIN32_DEBUG_FILE_OUTPUT (const char *format,...)
       return ;
   }
 
-  boost::mutex::scoped_lock l(mtx);
+  std::lock_guard<std::mutex> l(mtx);
   fprintf (f, "%u [%d]: ", GetTickCount (), GetCurrentThreadId ()) ;
   va_start (arg_ptr, format) ;
   vfprintf (f, format, arg_ptr) ;
@@ -598,7 +615,7 @@ void SetCaption (LPCSTR str)
 #ifndef DEVELOPMENT
   if (Session.GetBackendState() == kRendering && InputFileName.size () > 0)
   {
-    string filename = StripFilePath (InputFileName) ;
+    std::string filename = StripFilePath (InputFileName) ;
     if (strstr (str, filename.c_str ()) != NULL)
     {
       // if the filename is in the caption already, we're probably rendering
@@ -619,7 +636,7 @@ void SetCaption (LPCSTR str)
 #else
   if (Session.GetBackendState() == kRendering && InputFileName.size () > 0)
   {
-    string filename = StripFilePath (InputFileName) ;
+    std::string filename = StripFilePath (InputFileName) ;
     if (strstr (str, filename.c_str ()) != NULL)
     {
       // if the filename is in the caption already, we're probably rendering
@@ -1358,36 +1375,38 @@ bool inferHome (void)
   return (true) ;
 }
 
-string get36Home(void)
+std::string getHome(const char* ver)
 {
   char        str[_MAX_PATH];
   HKEY        key ;
   DWORD       len = sizeof(str);
 
-  if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "Software\\" REGKEY "\\v3.6\\Windows", 0, KEY_READ, &key) == ERROR_SUCCESS)
+  std::string keyName = std::string("Software\\" REGKEY "\\") + ver + "\\Windows";
+
+  if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, keyName.c_str(), 0, KEY_READ, &key) == ERROR_SUCCESS)
   {
     if (RegQueryValueEx (key, "Home", 0, NULL, (BYTE *) str, &len) == 0)
     {
       RegCloseKey (key) ;
       appendPathSeparator(str);
-      return string(str);
+      return std::string(str);
     }
     RegCloseKey (key) ;
   }
-  if (RegOpenKeyEx (HKEY_CURRENT_USER, "Software\\" REGKEY "\\v3.6\\Windows", 0, KEY_READ, &key) == ERROR_SUCCESS)
+  if (RegOpenKeyEx (HKEY_CURRENT_USER, keyName.c_str(), 0, KEY_READ, &key) == ERROR_SUCCESS)
   {
     if (RegQueryValueEx (key, "Home", 0, NULL, (BYTE *) str, &len) == 0)
     {
       RegCloseKey (key) ;
       appendPathSeparator(str);
-      return string(str);
+      return std::string(str);
     }
     RegCloseKey (key) ;
   }
-  return string();
+  return std::string();
 }
 
-bool copy36EditSettings(void)
+bool copyEditSettings(const char* ver)
 {
   HKEY        hKeySrc ;
   HKEY        hKeyDst ;
@@ -1404,7 +1423,9 @@ bool copy36EditSettings(void)
     return (false) ;
   }
 
-  if (RegOpenKeyEx (HKEY_CURRENT_USER, "Software\\" REGKEY "\\v3.6", 0, KEY_READ, &hKeySrc) != ERROR_SUCCESS)
+  std::string keyName = std::string("Software\\" REGKEY "\\") + ver;
+
+  if (RegOpenKeyEx (HKEY_CURRENT_USER, keyName.c_str(), 0, KEY_READ, &hKeySrc) != ERROR_SUCCESS)
   {
     FreeLibrary (hLib) ;
     return (false) ;
@@ -1425,77 +1446,13 @@ bool copy36EditSettings(void)
   return (result == ERROR_SUCCESS) ;
 }
 
-#ifdef POVRAY_IS_BETA
-bool copy37NoBetaEditSettings(void)
-{
-  HKEY        hKeySrc ;
-  HKEY        hKeyDst ;
-  DWORD       result ;
-  HINSTANCE   hLib ;
-  shCopyType  *shCopyKey ;
-
-  if ((hLib = LoadLibrary ("shlwapi.dll")) == NULL)
-    return (false) ;
-  shCopyKey = (shCopyType *) GetProcAddress (hLib, "SHCopyKeyA") ;
-  if (shCopyKey == NULL)
-  {
-    FreeLibrary (hLib) ;
-    return (false) ;
-  }
-
-  if (RegOpenKeyEx (HKEY_CURRENT_USER, "Software\\" REGKEY "\\" REGVER, 0, KEY_READ, &hKeySrc) != ERROR_SUCCESS)
-  {
-    FreeLibrary (hLib) ;
-    return (false) ;
-  }
-
-  if (RegCreateKeyEx (HKEY_CURRENT_USER, "Software\\" REGKEY "\\" REGVERKEY "\\POV-Edit", 0, "", REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hKeyDst, NULL) != ERROR_SUCCESS)
-  {
-    RegCloseKey (hKeySrc) ;
-    FreeLibrary (hLib) ;
-    return (false) ;
-  }
-
-  result = shCopyKey (hKeySrc, "POV-Edit", hKeyDst, NULL) ;
-  RegCloseKey (hKeySrc) ;
-  RegCloseKey (hKeyDst) ;
-  FreeLibrary (hLib) ;
-
-  return (result == ERROR_SUCCESS) ;
-}
-#endif
-
-bool checkEditKey36 (void)
+bool checkEditKey (const char* ver)
 {
   HKEY        key ;
 
-  if (RegOpenKeyEx (HKEY_CURRENT_USER, "Software\\" REGKEY "\\v3.6\\POV-Edit", 0, KEY_READ, &key) == ERROR_SUCCESS)
-  {
-    RegCloseKey (key) ;
-    return (true) ;
-  }
-  return (false) ;
-}
+  std::string keyName = std::string("Software\\" REGKEY "\\") + ver + "\\POV-Edit";
 
-#ifdef POVRAY_IS_BETA
-bool checkEditKey37NoBeta (void)
-{
-  HKEY        key ;
-
-  if (RegOpenKeyEx (HKEY_CURRENT_USER, "Software\\" REGKEY "\\" REGVER "\\POV-Edit", 0, KEY_READ, &key) == ERROR_SUCCESS)
-  {
-    RegCloseKey (key) ;
-    return (true) ;
-  }
-  return (false) ;
-}
-#endif
-
-bool checkEditKey37 (void)
-{
-  HKEY        key ;
-
-  if (RegOpenKeyEx (HKEY_CURRENT_USER, "Software\\" REGKEY "\\" REGVERKEY "\\POV-Edit", 0, KEY_READ, &key) == ERROR_SUCCESS)
+  if (RegOpenKeyEx (HKEY_CURRENT_USER, keyName.c_str(), 0, KEY_READ, &key) == ERROR_SUCCESS)
   {
     RegCloseKey (key) ;
     return (true) ;
@@ -1757,8 +1714,8 @@ LONG WINAPI ExceptionHandler(struct _EXCEPTION_POINTERS* ExceptionInfo)
   long                        timestamp = _time32(NULL);
   PCONTEXT                    c ;
   static char                 str[2048] ;
-  static boost::mutex         mtx;
-  boost::mutex::scoped_lock   l(mtx);
+  static std::mutex           mtx;
+  std::lock_guard<std::mutex> l(mtx);
 
   c = ExceptionInfo->ContextRecord ;
   const char *desc = GetExceptionDescription(ExceptionInfo->ExceptionRecord->ExceptionCode);
@@ -1893,7 +1850,7 @@ void RenderInsertMenu (void)
       if ((s2 = strchr (s1, ']')) != NULL)
       {
         *s2  = '\0' ;
-        val = atoi (++s1) ;
+        val = std::atoi (++s1) ;
         if (val == 0)
           continue ;
         InsertMenuSections.push_back(val);
@@ -1929,7 +1886,7 @@ int GetUCS2String(POVMSObjectPtr object, POVMSType key, char *result, int *maxle
   int err = POVMSUtil_GetUCS2String (object, key, str, maxlen) ;
   if (err == kNoErr)
   {
-    string abc = UCS2toASCIIString (str) ;
+    std::string abc = UCS2toSysString (str) ;
     strcpy (result, abc.c_str ()) ;
   }
   delete str ;
@@ -2222,7 +2179,7 @@ bool start_rendering (bool ignore_source_file)
     if (opts.GetOptions().TryGetInt(kPOVAttrib_RenderBlockSize, 32) < 4)
       throw POV_EXCEPTION (kParseErr, "Minimum permitted render block size is 4 (+BS4 or Render_Block_Size=4)") ;
 
-    InputFileName = UCS2toASCIIString (Session.GetInputFilename());
+    InputFileName = UCS2toSysString (Session.GetInputFilename());
     output_to_file = opts.GetOptions().TryGetBool(kPOVAttrib_OutputToFile, true) ;
     render_width = Session.GetRenderWidth();
     render_height = Session.GetRenderHeight();
@@ -2464,7 +2421,7 @@ void render_stopped (void)
     }
     if (!running_demo && !demo_mode && !benchmark_mode && !rendering_insert_menu && !running_benchmark && !was_insert_render)
     {
-      string ofn = UCS2toASCIIString (Session.GetOutputFilename());
+      std::string ofn = UCS2toSysString (Session.GetOutputFilename());
       if (output_to_file && ofn.size () != 0)
       {
         sprintf (str, "Output -> '%s'", ofn.c_str ()) ;
@@ -2541,7 +2498,7 @@ void render_stopped (void)
       FileType ft = get_file_type(it->c_str());
       if (ft < fileFirstImageType || ft > fileLastImageType)
       {
-        pair<map<string, string>::iterator, bool> result = IncludeToSourceMap.insert(pair<string, string> (*it, InputFileName));
+        pair<map<std::string, std::string>::iterator, bool> result = IncludeToSourceMap.insert(pair<std::string, std::string> (*it, InputFileName));
         if (result.second == false)
           result.first->second = InputFileName;
       }
@@ -3916,12 +3873,12 @@ LRESULT CALLBACK PovMainWndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM 
            _strlwr(fn);
 
            // see if we have a previous decision recorded for this file.
-           map<string, bool>::const_iterator altit = IncludeAlternateDecisionMap.find(fn);
+           map<std::string, bool>::const_iterator altit = IncludeAlternateDecisionMap.find(fn);
            if (altit == IncludeAlternateDecisionMap.end() || altit->second == true)
            {
              // either there is no decision recorded, or the decision was 'yes'
              // in either case we need to find the alternate filename
-             map<string, string>::const_iterator it = IncludeToSourceMap.find(fn);
+             map<std::string, std::string>::const_iterator it = IncludeToSourceMap.find(fn);
              if (it != IncludeToSourceMap.end())
              {
                // we've found the alternate filename. do we need to ask the user about it?
@@ -3932,7 +3889,7 @@ LRESULT CALLBACK PovMainWndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                  {
                    case IDYES:
                      // record the decision
-                     IncludeAlternateDecisionMap.insert(pair<string, bool>(fn, true));
+                     IncludeAlternateDecisionMap.insert(pair<std::string, bool>(fn, true));
                      strcpy(source_file_name, it->second.c_str());
                      break;
 
@@ -3943,7 +3900,7 @@ LRESULT CALLBACK PovMainWndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 
                    case IDNO:
                      // record the decision
-                     IncludeAlternateDecisionMap.insert(pair<string, bool>(fn, false));
+                     IncludeAlternateDecisionMap.insert(pair<std::string, bool>(fn, false));
                      break;
 
                    case IDCANCEL:
@@ -5111,11 +5068,11 @@ void LZTimerOff (void)
     PerformanceCounter2 = 0 ;
 }
 
-ulong LZTimerCount (void)
+unsigned long LZTimerCount (void)
 {
   if (PerformanceCounter1 == 0 || PerformanceCounter2 < PerformanceCounter1)
     return (0) ;
-  return ((ulong) ((PerformanceCounter2 - PerformanceCounter1) / PerformanceScale)) ;
+  return ((unsigned long) ((PerformanceCounter2 - PerformanceCounter1) / PerformanceScale)) ;
 }
 
 __int64 LZTimerRawCount (void)
@@ -5127,6 +5084,7 @@ __int64 LZTimerRawCount (void)
 #endif // #ifdef _MSC_VER
 
 }
+// end of namespace povwin
 
 static void __cdecl newhandler (void)
 {
@@ -5339,7 +5297,7 @@ void NoAVX2 (void)
               "Please use the standard non-AVX2 version of POV-Ray on this computer.",
               "POV-Ray for Windows",
               MB_ICONSTOP | MB_OK) ;
-  exit (-1) ;
+  std::exit (-1) ;
 }
 
 inline void TestAVX2 (void)
@@ -5357,7 +5315,7 @@ void NoAVX (void)
               "Please use the standard non-AVX version of POV-Ray on this computer.",
               "POV-Ray for Windows",
               MB_ICONSTOP | MB_OK) ;
-  exit (-1) ;
+  std::exit (-1) ;
 }
 
 inline void TestAVX (void)
@@ -5375,7 +5333,7 @@ void NoSSE2 (void)
               "Please use the standard non-SSE2 version of POV-Ray on this computer.",
               "POV-Ray for Windows",
               MB_ICONSTOP | MB_OK) ;
-  exit (-1) ;
+  std::exit (-1) ;
 }
 
 inline void TestSSE2 (void)
@@ -5538,17 +5496,16 @@ int PASCAL WinMain (HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
   sprintf(ToolIniFileName, "%sini\\pvtools.ini", DocumentsPath);
   sprintf(EngineIniFileName, "%sini\\pvengine.ini", DocumentsPath);
 
-  if (!checkEditKey37())
+  if (!checkEditKey(REGVERKEY))
   {
-#ifdef POVRAY_IS_BETA
-    if (checkEditKey37NoBeta())
-      copy37NoBetaEditSettings();
-    else if (checkEditKey36())
-      copy36EditSettings();
-#else
-    if (checkEditKey36())
-      copy36EditSettings();
-#endif
+    for (const char **oldVer = CanInheritFromVersions; *oldVer != NULL; ++oldVer)
+    {
+      if (checkEditKey(*oldVer))
+      {
+        copyEditSettings(*oldVer);
+        break;
+      }
+    }
   }
 
   if (checkRegKey () == false || FreshInstall == true)
@@ -5570,28 +5527,28 @@ int PASCAL WinMain (HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
 #ifndef MAP_INI_TO_REGISTRY
   if (!fileExists(EngineIniFileName))
   {
-    // no INI file: see if we can copy the 3.6 INI options, should they exist
-    if (debugging)
-      debug_output("no pvengine.ini: seeing if there is a v3.6 ini\n") ;
-
-    string str(get36Home());
-    if (str.empty() == false)
+    bool foundOld = false;
+    for (const char **oldVer = CanInheritFromVersions; *oldVer != NULL; ++oldVer)
     {
-      string oldINIpath = str + "ini\\pvengine.ini";
-      if (fileExists(oldINIpath.c_str()))
+      // no INI file: see if we can copy an older version's INI options, should they exist
+      if (debugging)
+        debug_output("no pvengine.ini: seeing if there is a %s ini\n", *oldVer) ;
+
+      std::string str(getHome(*oldVer));
+      if (str.empty() == false)
       {
+        std::string oldINIpath = str + "ini\\pvengine.ini";
+        if (!fileExists(oldINIpath.c_str()))
+          continue;
+
         if (debugging)
           debug_output("cloning INI file %s to %s\n", oldINIpath.c_str(), EngineIniFileName) ;
         cloneOldIni(str, DocumentsPath);
-      }
-      else
-      {
-        if (debugging)
-          debug_output("creating default INI file %s\n", EngineIniFileName) ;
-        cloneOldIni("", DocumentsPath);
+        foundOld = true;
+        break;
       }
     }
-    else
+    if (!foundOld)
     {
       if (debugging)
         debug_output("creating default INI file %s\n", EngineIniFileName) ;
@@ -5622,7 +5579,7 @@ int PASCAL WinMain (HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
   splitpath (str, modulePath, NULL) ;
   validatePath (modulePath) ;
 
-  sprintf (engineHelpPath, "%shelp\\povray37.chm", BinariesPath) ;
+  sprintf (engineHelpPath, "%shelp\\povray.chm", BinariesPath) ;
   HtmlHelp (NULL, NULL, HH_INITIALIZE, (DWORD_PTR) &help_cookie) ;
   memset (&hh_aklink, 0, sizeof (hh_aklink)) ;
   hh_aklink.cbStruct = sizeof (hh_aklink) ;
@@ -5870,19 +5827,41 @@ int PASCAL WinMain (HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
   {
     if (EditDLLPath != NULL)
     {
-      sprintf (str, "%s" EDITDLLNAME, EditDLLPath) ;
-      if (!LoadEditorDLL (str, false))
-        use_editors = false ;
+#ifdef _DEBUG
+      // Prefer debug DLL, but don't complain if it's not available.
+      sprintf(str, "%s" EDITDLLNAME_DEBUG, EditDLLPath);
+      if (!LoadEditorDLL(str, true))
+      {
+#endif
+        sprintf(str, "%s" EDITDLLNAME, EditDLLPath);
+        if (!LoadEditorDLL (str, false))
+          use_editors = false ;
+#ifdef _DEBUG
+      }
+#endif
     }
     else
     {
-      sprintf (str, "%s\\" EDITDLLNAME, modulePath) ;
-      if (!LoadEditorDLL (str, true))
+#ifdef _DEBUG
+      // Prefer debug DLL, but don't complain if it's not available.
+      sprintf (str, "%s\\" EDITDLLNAME_DEBUG, modulePath);
+      if (!LoadEditorDLL(str, true))
       {
-        sprintf (str, "%sbin\\" EDITDLLNAME, BinariesPath) ;
-        if (!LoadEditorDLL (str, false))
-          use_editors = false ;
+        sprintf (str, "%sbin\\" EDITDLLNAME_DEBUG, BinariesPath) ;
+        if (!LoadEditorDLL (str, true))
+        {
+#endif
+          sprintf (str, "%s\\" EDITDLLNAME, modulePath) ;
+          if (!LoadEditorDLL (str, true))
+          {
+            sprintf (str, "%sbin\\" EDITDLLNAME, BinariesPath) ;
+            if (!LoadEditorDLL (str, false))
+              use_editors = false ;
+          }
+#ifdef _DEBUG
+        }
       }
+#endif
     }
   }
   else
@@ -6444,7 +6423,7 @@ int PASCAL WinMain (HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
     if (debugging)
       debug_output ("%s\n", str) ;
     MessageBox (NULL, str, "POV-Ray Critical Error", MB_ICONSTOP) ;
-    exit(1);
+    std::exit(1);
   }
 
   if (debugging)

@@ -7,8 +7,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -38,15 +38,18 @@
 
 // Module config header file must be the first file included within POV-Ray unit header files
 #include "base/configbase.h"
+#include "base/fileinputoutput_fwd.h"
 
-// C++ variants of standard C header files
+// C++ variants of C standard header files
 #include <cstdio>
 #include <cstring>
 
-// POV-Ray base header files
-#include "base/path.h"
-#include "base/stringutilities.h"
-#include "base/types.h"
+// C++ standard header files
+//  (none at the moment)
+
+// POV-Ray header files (base module)
+#include "base/path_fwd.h"
+#include "base/stringtypes.h"
 
 namespace pov_base
 {
@@ -100,10 +103,10 @@ class IOBase
         enum { none = 0, append = 1 };
         enum { seek_set = SEEK_SET, seek_cur = SEEK_CUR, seek_end = SEEK_END };
 
-        virtual bool seekg(POV_LONG pos, unsigned int whence = seek_set) = 0;
+        virtual bool seekg(POV_OFF_T pos, unsigned int whence = seek_set) = 0;
 
         virtual bool eof() const = 0;
-        virtual POV_LONG tellg() const = 0;
+        virtual POV_OFF_T tellg() const = 0;
         virtual bool clearstate() = 0;
         inline const UCS2 *Name() const { return(filename.c_str()); }
 
@@ -120,9 +123,10 @@ class IStream : public IOBase
     public:
         IStream();
         IStream(const UCS2String& name);
-        virtual ~IStream();
+        virtual ~IStream() override;
 
-        virtual bool read(void *buffer, size_t count) = 0;
+        virtual bool read(void *buffer, size_t exactCount) = 0;
+        virtual size_t readUpTo(void *buffer, size_t maxCount) = 0;
 
         virtual int Read_Byte() = 0;
         inline bool Read_Byte(char& c) { c =(char) Read_Byte(); return !fail; }
@@ -136,29 +140,30 @@ class IStream : public IOBase
         virtual bool UnRead_Byte(int c) = 0;
 
         virtual bool getline(char *s, size_t buflen) = 0;
-        inline bool ignore(POV_LONG count) { return seekg(count, seek_cur); }
+        inline bool ignore(POV_OFF_T count) { return seekg(count, seek_cur); }
 };
 
 /// File-backed input stream.
 ///
 /// This class provides file read access.
 ///
-class IFileStream : public IStream
+class IFileStream final : public IStream
 {
     public:
         IFileStream(const UCS2String& name);
-        virtual ~IFileStream();
+        virtual ~IFileStream() override;
 
-        virtual bool eof() const { return(fail ? true : feof(f) != 0); }
-        virtual bool seekg(POV_LONG pos, unsigned int whence = seek_set);
-        virtual POV_LONG tellg() const { return(f == NULL ? -1 : ftell(f)); }
-        virtual bool clearstate() { if(f != NULL) fail = false; return !fail; }
+        virtual bool eof() const override { return(fail ? true : feof(f) != 0); }
+        virtual bool seekg(POV_OFF_T pos, unsigned int whence = seek_set) override;
+        virtual POV_OFF_T tellg() const override { return(f == nullptr ? -1 : ftell(f)); }
+        virtual bool clearstate() override { if (f != nullptr) fail = false; return !fail; }
 
-        virtual bool read(void *buffer, size_t count);
-        virtual bool getline(char *s, size_t buflen);
-        virtual int Read_Byte();
+        virtual bool read(void *buffer, size_t exactCount) override;
+        virtual size_t readUpTo(void *buffer, size_t maxCount) override;
+        virtual bool getline(char *s, size_t buflen) override;
+        virtual int Read_Byte() override;
 
-        virtual bool UnRead_Byte(int c);
+        virtual bool UnRead_Byte(int c) override;
 
     protected:
         FILE *f;
@@ -171,28 +176,29 @@ class IFileStream : public IStream
 ///
 /// This class is used to support in-built fonts and cached macros.
 ///
-class IMemStream : public IStream
+class IMemStream final : public IStream
 {
     public:
-        IMemStream(const unsigned char* data, size_t size, const char* formalName, POV_LONG formalStart = 0);
-        IMemStream(const unsigned char* data, size_t size, const UCS2String& formalName, POV_LONG formalStart = 0);
-        virtual ~IMemStream();
+        IMemStream(const unsigned char* data, size_t size, const char* formalName, POV_OFF_T formalStart = 0);
+        IMemStream(const unsigned char* data, size_t size, const UCS2String& formalName, POV_OFF_T formalStart = 0);
+        virtual ~IMemStream() override;
 
-        virtual int Read_Byte();
-        virtual bool UnRead_Byte(int c);
-        virtual bool getline(char *s, size_t buflen);
-        virtual POV_LONG tellg() const;
-        virtual bool read(void *buffer, size_t count);
-        virtual bool seekg(POV_LONG pos, unsigned int whence = seek_set);
-        virtual bool clearstate() { fail = false; return true; }
+        virtual int Read_Byte() override;
+        virtual bool UnRead_Byte(int c) override;
+        virtual bool getline(char *s, size_t buflen) override;
+        virtual POV_OFF_T tellg() const override;
+        virtual bool read(void *buffer, size_t exactCount) override;
+        virtual size_t readUpTo(void *buffer, size_t count) override;
+        virtual bool seekg(POV_OFF_T pos, unsigned int whence = seek_set) override;
+        virtual bool clearstate() override { fail = false; return true; }
 
-        virtual bool eof() const { return fail; }
+        virtual bool eof() const override { return fail; }
 
     protected:
 
         size_t size;
         size_t pos;
-        POV_LONG formalStart;
+        POV_OFF_T formalStart;
         const unsigned char * start;
         int mUngetBuffer;
 };
@@ -201,12 +207,12 @@ class OStream : public IOBase
 {
     public:
         OStream(const UCS2String& name, unsigned int Flags = 0);
-        ~OStream();
+        virtual ~OStream() override;
 
-        virtual bool seekg(POV_LONG pos, unsigned int whence = seek_set);
-        virtual POV_LONG tellg() const { return(f == NULL ? -1 : ftell(f)); }
-        inline bool clearstate() { if(f != NULL) fail = false; return !fail; }
-        virtual bool eof() const { return(fail ? true : feof(f) != 0); }
+        virtual bool seekg(POV_OFF_T pos, unsigned int whence = seek_set) override;
+        virtual POV_OFF_T tellg() const override { return(f == nullptr ? -1 : ftell(f)); }
+        virtual inline bool clearstate() override { if (f != nullptr) fail = false; return !fail; }
+        virtual bool eof() const override { return(fail ? true : feof(f) != 0); }
 
         bool write(const void *buffer, size_t count);
         void printf(const char *format, ...);
@@ -221,16 +227,17 @@ class OStream : public IOBase
 IStream *NewIStream(const Path&, unsigned int);
 OStream *NewOStream(const Path&, unsigned int, bool);
 
-UCS2String GetFileExtension(const Path& p);
-UCS2String GetFileName(const Path& p);
+UCS2String GetFileExtension(const Path& p); ///< @todo Move this to the @ref Path class.
+UCS2String GetFileName(const Path& p);      ///< @todo Move this to the @ref Path class.
 
-bool CheckIfFileExists(const Path& p);
-POV_LONG GetFileLength(const Path& p);
+bool CheckIfFileExists(const Path& p);      ///< @todo Move this to the @ref PlatformBase class.
+POV_OFF_T GetFileLength(const Path& p);     ///< @todo Move this to the @ref PlatformBase class.
 
 /// @}
 ///
 //##############################################################################
 
 }
+// end of namespace pov_base
 
 #endif // POVRAY_BASE_FILEINPUTOUTPUT_H

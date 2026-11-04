@@ -9,8 +9,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2017 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2021 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -38,17 +38,19 @@
 #ifndef POVRAY_BASE_CONFIGBASE_H
 #define POVRAY_BASE_CONFIGBASE_H
 
+// Pull in other compile-time config header files first
 #include "syspovconfigbase.h"
 
-#include <limits>
-
-#include <boost/version.hpp>
+// C++ variants of C standard header files
+// C++ standard header files
+//  (none at the moment)
 
 //##############################################################################
 ///
 /// @defgroup PovBaseConfig Base Compile-Time Configuration
 /// @ingroup PovBase
 /// @ingroup PovConfig
+/// Compile-Time Configuration of the @ref PovBase.
 ///
 /// In addition to the configuration settings listed below, platform-specific compile-time
 /// configuration needs to define various symbols to have the same semantics as those of the same
@@ -56,50 +58,34 @@
 /// the corresponding header files and specifying `using NAMESPACE::SYMBOL`. However, alternative
 /// implementations may also be provided unless noted otherwise.
 ///
-/// The following symbols must have the same semantics as those from C++03's `std::` namespace:
-///
-///   - `list`
-///   - `runtime_error` (should be identical to `std::runtime_error`)
-///   - `string`
-///   - `vector`
-///
-/// The following symbols must have the same semantics as those from either Boost's `boost::`
-/// namespace, TR1's `std::tr1::` namespace, or C++11's `std::` namespace:
-///
-///   - `const_pointer_cast`
-///   - `dynamic_pointer_cast`
-///   - `shared_ptr`
-///   - `static_pointer_cast`
-///   - `weak_ptr`
-///
-/// The following symbols must have the same semantics as those from Boost's `boost::` namespace:
-///
-///   - `intrusive_ptr`
-///
-/// @todo
-///     The following POSIX features also need to be present or emulated:
-///       - `O_CREAT`, `O_RDWR`, `O_TRUNC`
-///       - `S_IRUSR`, `S_IWUSR`
-///       - `int open(const char*, int, int)`
-///       - `int close(int)`
-///       - `ssize_t write(int, const void*, size_t)`
-///       - `ssize_t read(int, void*, size_t)`
-///       - `off64_t lseek64(int, off64_t, int)
-///
-/// @todo
-///     The following somewhat obscure macros also need to be defined:
-///       - `IFF_SWITCH_CAST`
-///
 /// @todo
 ///     The following macros currently default to unexpected values; also, the implementations
 ///     they default to are currently not part of the base module:
 ///       - `POV_MALLOC`
 ///       - `POV_REALLOC`
 ///       - `POV_FREE`
-///       - `POV_MEMMOVE`
 ///
 /// @{
 
+//******************************************************************************
+///
+/// @name C++ Language Standard
+///
+/// @{
+
+/// @def POV_CPP11_SUPPORTED
+/// Whether the compiler supports C++11.
+///
+/// Define as non-zero if the compiler is known to support all the C++11 language features
+/// required to build POV-Ray, or zero if you are sure it doesn't. If in doubt, leave undefined.
+///
+#ifndef POV_CPP11_SUPPORTED
+    #define POV_CPP11_SUPPORTED (__cplusplus >= 201103L)
+#endif
+
+
+/// @}
+///
 //******************************************************************************
 ///
 /// @name Fundamental Data Types
@@ -339,56 +325,16 @@
     #define COLC float
 #endif
 
-/// @def UCS2
-/// Data type used to represent individual UCS2 characters.
-///
-/// This data type is used to represent characters from the UCS2 character set, i.e. the 16-bit
-/// Base Multilingual Plane subset of Unicode.
-///
-/// This should be an unsigned integer type at least 16 bits wide.
-///
-/// @note
-///     For clarity, this data type should _not_ be used as the base type for UTF-16 encoded
-///     full-fledged Unicode strings. Use @ref UTF16 instead.
-///
-/// @note
-///     Currently, the actual type must be identical to that of @ref UTF16.
-///
-/// @attention
-///     Some legacy portions of the code may improperly use this type where they should use
-///     @ref UTF16 instead.
-///
-#ifndef UCS2
-    #define UCS2 POV_UINT16
+// The following character types are no longer defined as macros,
+// but instead use aliased or dedicated types.
+#ifdef UCS2
+    #error "Platform-specific configurations should no longer define UCS2 as a macro."
 #endif
-
-/// @def UCS4
-/// Integer data type used to represent UCS4 or full-fledged Unicode characters.
-///
-/// This should be an unsigned integer type at least 21 (sic!) bits wide.
-///
-#ifndef UCS4
-    #define UCS4 POV_UINT32
+#ifdef UCS4
+    #error "Platform-specific configurations should no longer define UCS4 as a macro."
 #endif
-
-/// @def UTF16
-/// Integer data type used as the base type to represent UTF-16 encoded Unicode strings.
-/// This should be an unsigned integer type at least 16 bits wide.
-///
-/// @note
-///     For clarity, this data type should _not_ be used to store regular UCS2 characters
-///     (16-bit Base Multilingual Plane subset of Unicode). For that purpose, use @ref UCS2
-///     instead.
-///
-/// @note
-///     Currently, the actual type must be identical to that of @ref UTF16.
-///
-/// @attention
-///     Some legacy portions of the code may improperly use @ref UCS2 where they should use this
-///     type instead.
-///
-#ifndef UTF16
-    #define UTF16 POV_UINT16
+#ifdef UTF16
+    #error "Platform-specific configurations should no longer define UTF16 as a macro."
 #endif
 
 /// @def POV_LONG
@@ -546,7 +492,7 @@
 #endif
 
 #ifndef POV_FREE
-    #define POV_FREE(ptr)               do { pov_base::pov_free (static_cast<void *>(ptr), __FILE__, __LINE__); (ptr) = NULL; } while(false)
+    #define POV_FREE(ptr)               do { pov_base::pov_free (static_cast<void *>(ptr), __FILE__, __LINE__); (ptr) = nullptr; } while(false)
 #endif
 
 #ifndef POV_MEM_INIT
@@ -559,15 +505,6 @@
 
 #ifndef POV_STRDUP
     #define POV_STRDUP(str)             pov_base::pov_strdup(str)
-#endif
-
-// For those systems that don't have memmove, this can also be pov_memmove
-#ifndef POV_MEMMOVE
-    #define POV_MEMMOVE(dst,src,len)    pov_base::pov_memmove((dst),(src),(len))
-#endif
-
-#ifndef POV_MEMCPY
-    #define POV_MEMCPY(dst,src,len)     std::memcpy((dst),(src),(len))
 #endif
 
 #ifndef POV_MEM_STATS
@@ -594,10 +531,9 @@
 ///
 #ifndef POV_BUILD_INFO
     // leave undefined
-    #ifdef DOXYGEN
-        // doxygen cannot document undefined macros
-        #define POV_BUILD_INFO ""
-    #endif
+    // The following two lines work around doxygen being unable to document undefined macros.
+    #define POV_BUILD_INFO (undefined)
+    #undef POV_BUILD_INFO
 #endif
 
 /// @def POV_RAY_BUILD_ID
@@ -613,10 +549,9 @@
 ///
 #ifndef POV_RAY_BUILD_ID
     // leave undefined
-    #ifdef DOXYGEN
-        // doxygen cannot document undefined macros
-        #define POV_RAY_BUILD_ID ""
-    #endif
+    // The following two lines work around doxygen being unable to document undefined macros.
+    #define POV_RAY_BUILD_ID (undefined)
+    #undef POV_RAY_BUILD_ID
 #endif
 
 /// @def POV_COMPILER_INFO
@@ -628,10 +563,9 @@
 ///
 #ifndef POV_COMPILER_INFO
     // leave undefined
-    #ifdef DOXYGEN
-        // doxygen cannot document undefined macros
-        #define POV_COMPILER_INFO ""
-    #endif
+    // The following two lines work around doxygen being unable to document undefined macros.
+    #define POV_COMPILER_INFO (undefined)
+    #undef POV_COMPILER_INFO
 #endif
 
 /// @def POV_SYS_IMAGE_TYPE
@@ -645,10 +579,9 @@
 ///
 #ifndef POV_SYS_IMAGE_TYPE
     // leave undefined by default
-    #ifdef DOXYGEN
-        // doxygen cannot document undefined macros
-        #define POV_SYS_IMAGE_TYPE SYS
-    #endif
+    // The following two lines work around doxygen being unable to document undefined macros.
+    #define POV_SYS_IMAGE_TYPE (undefined)
+    #undef POV_SYS_IMAGE_TYPE
 #endif
 
 /// @def POV_SYS_IMAGE_EXTENSION
@@ -661,7 +594,21 @@
 ///     When overriding this setting, make sure to also override @ref POV_SYS_IMAGE_TYPE.
 ///
 #ifndef POV_SYS_IMAGE_EXTENSION
-    #define POV_SYS_IMAGE_EXTENSION ".tga"
+    // leave undefined by default
+    // The following two lines work around doxygen being unable to document undefined macros.
+    #define POV_SYS_IMAGE_EXTENSION (undefined)
+    #undef POV_SYS_IMAGE_EXTENSION
+#endif
+
+/// @def POV_FILENAME_BUFFER_CHARS
+/// The number of characters to reserve for file name buffers.
+///
+/// This setting is used in allocating temporary buffers to construct file names, and should be set
+/// to the maximum number of ASCII characters in a file name the system can handle safely.
+/// The value is understood to exclude any terminating NUL character.
+///
+#ifndef POV_FILENAME_BUFFER_CHARS
+    #define POV_FILENAME_BUFFER_CHARS 199
 #endif
 
 /// @def POV_PATH_SEPARATOR
@@ -706,10 +653,9 @@
 ///
 #ifndef POV_NEW_LINE_STRING
     // leave undefined, optimizing the code for "\n" as used internally
-    #ifdef DOXYGEN
-        // doxygen cannot document undefined macros
-        #define POV_NEW_LINE_STRING "\n"
-    #endif
+    // The following two lines work around doxygen being unable to document undefined macros.
+    #define POV_NEW_LINE_STRING (undefined)
+    #undef POV_NEW_LINE_STRING
 #endif
 
 #ifndef EXIST_FONT_FILE
@@ -750,18 +696,6 @@
     #define CDECL
 #endif
 
-#ifndef ALIGN16
-    #define ALIGN16
-#endif
-
-#ifndef ALIGN32
-    // leave undefined, allowing code to detect that forced 32-bit alignment isn't supported
-    #ifdef DOXYGEN
-        // doxygen cannot document undefined macros
-        #define ALIGN32
-    #endif
-#endif
-
 #ifndef FORCEINLINE
     #define FORCEINLINE inline
 #endif
@@ -776,18 +710,29 @@
     #define POV_MULTITHREADED 1
 #endif
 
-/// @def POV_USE_DEFAULT_DELAY
-/// Whether to use a default implementation for the millisecond-precision delay function.
+/// @def POV_USE_PLATFORM_DELAY
+/// Whether to use a platform-specific implementation for the millisecond-precision delay function.
 ///
-/// Define as non-zero to use a default implementation for the @ref pov_base::Delay() function, or zero if
+/// Define as zero to use a portable default implementation for the @ref pov_base::Delay() function, or non-zero if
 /// the platform provides its own implementation.
 ///
-/// @note
-///     The default implementation is only provided as a last-ditch resort. Wherever possible,
-///     implementations should provide their own implementation.
+/// The actual value may carry additional semantics based on the platform
+/// family. The following are currently known (but see the respective platform
+/// specific code for authoritative information):
 ///
-#ifndef POV_USE_DEFAULT_DELAY
-    #define POV_USE_DEFAULT_DELAY 1
+/// | Value | Windows       | Unix              |
+/// | ----: | :------------ | :---------------- |
+/// |     0 | `std::this_thread::sleep_for()`   |
+/// |     1 | `Sleep()`     | `nanosleep()`     |
+/// |     2 | ^             | `usleep()`        |
+/// | other | ^             | undefined         |
+///
+#ifndef POV_USE_PLATFORM_DELAY
+    #define POV_USE_PLATFORM_DELAY 0
+#endif
+
+#ifdef POV_USE_DEFAULT_DELAY
+#error "POV_USE_DEFAULT_DELAY has been superseded by POV_USE_PLATFORM_DELAY. Note that the new setting has inverse semantics."
 #endif
 
 /// @def POV_USE_DEFAULT_TIMER
@@ -817,23 +762,43 @@
     #define POV_USE_DEFAULT_PATH_PARSER 1
 #endif
 
-/// @def POV_DELETE_FILE
-/// Delete a given file.
+/// @def POV_USE_DEFAULT_DELETEFILE
+/// Whether to use a default implementation to delete a file.
 ///
-/// Define as a single command that erases the specified file from the file system.
+/// Define as non-zero to use a default implementation for the @ref pov_base::Filesystem::DeleteFile() method,
+/// or zero if the platform provides its own implementation.
 ///
 /// @note
-///     There is no default implementation for this macro.
+///     The default implementation is only provided as a last-ditch resort. Wherever possible,
+///     implementations should provide their own implementation.
 ///
-/// @param[in]  name    UTF-8 encoded file name in system-specific format.
+#ifndef POV_USE_DEFAULT_DELETEFILE
+    #define POV_USE_DEFAULT_DELETEFILE 1
+#endif
+
+/// @def POV_USE_DEFAULT_LARGEFILE
+/// Whether to use a default implementation for large file handling.
 ///
-#ifndef POV_DELETE_FILE
-    #ifdef DOXYGEN
-        // doxygen cannot document undefined macros
-        #define POV_DELETE_FILE(name) do{;}while(0)
-    #else
-        #error "No default implementation for POV_DELETE_FILE."
-    #endif
+/// Define as non-zero to use a default implementation for the @ref pov_base::Filesystem::LargeFile class,
+/// or zero if the platform provides its own implementation.
+///
+/// @note
+///     The current default implementation may or may not actually support large
+///     files, and may provide less than optimal performance.
+///
+#ifndef POV_USE_DEFAULT_LARGEFILE
+    #define POV_USE_DEFAULT_LARGEFILE 1
+#endif
+
+/// @def POV_OFF_T
+/// Type representing a particular absolute or relative location in a (large) file.
+///
+/// Define this to a signed integer wide enough to hold the maximum file size
+/// supported by the operating system. On most modern systems, this should be
+/// at least 64 bits (including the sign bit).
+///
+#ifndef POV_OFF_T
+    #define POV_OFF_T std::int_least64_t
 #endif
 
 /// @}
@@ -929,6 +894,33 @@
     #define POV_SAFEMATH_DEBUG POV_DEBUG
 #endif
 
+/// @def POV_STRING_DEBUG
+/// Enable run-time sanity checks for string handling.
+///
+/// Define as non-zero integer to enable, or zero to disable.
+///
+#ifndef POV_STRING_DEBUG
+    #define POV_STRING_DEBUG POV_DEBUG
+#endif
+
+/// @def POV_BOMB_ON_ERROR
+/// Fail hard on all errors, allowing a debugger to kick in.
+///
+/// Define as non-zero integer to enable, or zero to disable.
+///
+/// If left undefined by system-specific configurations, this setting defaults to `0`.
+///
+/// @attention
+///     This setting is _strictly_ for debugging purposes only. It should _never ever_ be enabled
+///     in _any_ builds released to end users, be it release builds or otherwise!
+///
+/// @note
+///     At present, this is not yet supported by all error conditions.
+///
+#ifndef POV_BOMB_ON_ERROR
+    #define POV_BOMB_ON_ERROR 0
+#endif
+
 /// @}
 ///
 //******************************************************************************
@@ -940,24 +932,6 @@
 ///
 /// @{
 
-/// @def POV_TIME_UTC
-/// Alias for `boost::TIME_UTC` or `boost::TIME_UTC_`, whichever is applicable.
-///
-/// Boost 1.50 changed TIME_UTC to TIME_UTC_ to avoid a clash with C++11, which has
-/// TIME_UTC as a define (in boost it's an enum). To allow compilation with earlier
-/// versions of boost we now use POV_TIME_UTC in the code and define that here.
-///
-#if BOOST_VERSION >= 105000
-    #define POV_TIME_UTC boost::TIME_UTC_
-#else
-    #ifdef TIME_UTC
-        // clash between C++11 and boost detected, need to hard-code
-        #define POV_TIME_UTC 1
-    #else
-        #define POV_TIME_UTC boost::TIME_UTC
-    #endif
-#endif
-
 /// @def POV_BACKSLASH_IS_PATH_SEPARATOR
 /// Whether the system supports the backslash as a separator character.
 ///
@@ -967,10 +941,27 @@
     #define POV_BACKSLASH_IS_PATH_SEPARATOR 0
 #endif
 
+/// @def POV_ASSERT
+/// Assert a condition that should hold true by design.
+/// In debug builds, this macro evaluates the specified expression, and halts execution if the
+/// expression does not hold true.
+/// In release builds, this macro evaluates to an empty statement.
 #if POV_DEBUG
     #define POV_ASSERT(expr) POV_ASSERT_HARD(expr)
 #else
     #define POV_ASSERT(expr) POV_ASSERT_DISABLE(expr)
+#endif
+
+/// @def POV_EXPERIMENTAL_ASSERT
+/// Assert a condition that is expected to hold true by current understanding of the code.
+/// This macro evaluates the specified expression, and halts execution (in debug builds) or throws
+/// an exception (in release builds) if the expression does not hold true.
+/// @attention
+///     This macro is intended for special builds only, and should _never_ be used in mainline versions!
+#if POV_DEBUG
+    #define POV_EXPERIMENTAL_ASSERT(expr) POV_ASSERT_HARD(expr)
+#else
+    #define POV_EXPERIMENTAL_ASSERT(expr) POV_ASSERT_SOFT(expr)
 #endif
 
 #if POV_COLOURSPACE_DEBUG
@@ -1015,7 +1006,16 @@
     #define POV_SAFEMATH_ASSERT(expr) POV_ASSERT_DISABLE(expr)
 #endif
 
+#if POV_STRING_DEBUG
+    #define POV_STRING_ASSERT(expr) POV_ASSERT_HARD(expr)
+#else
+    #define POV_STRING_ASSERT(expr) POV_ASSERT_DISABLE(expr)
+#endif
+
 #define M_TAU TWO_M_PI
+
+#define POVMSAddress        void*
+#define POVMSInvalidAddress nullptr
 
 /// @}
 ///
@@ -1024,5 +1024,12 @@
 /// @}
 ///
 //##############################################################################
+
+//******************************************************************************
+// Sanity Checks
+
+#if !POV_CPP11_SUPPORTED
+    #error "This version of POV-Ray requires C++11, which your compiler does not seem to support."
+#endif
 
 #endif // POVRAY_BASE_CONFIGBASE_H

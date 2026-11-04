@@ -1,0 +1,92 @@
+name: 'Quick Tests'
+
+on:
+  workflow_dispatch:
+  push:
+    # For now, there's nothing in the following directories that we're actually checking.
+    paths-ignore: [ 'distribution/**', 'doc/**', 'source-doc/**' ]
+  pull_request:
+    # For now, there's nothing in the following directories that we're actually checking.
+    paths-ignore: [ 'distribution/**', 'doc/**', 'source-doc/**' ]
+
+permissions:
+  contents: read
+
+jobs:
+  build_unix:
+    name: 'Unix Build Test'
+    runs-on: ubuntu-24.04
+    steps:
+
+    - name: 'Check out Repository'
+      uses: actions/checkout@v7
+
+    - name: 'Install Prerequisites'
+      uses: ./.github/actions/unix_getlibs
+
+    - name: 'Prebuild'
+      uses: ./.github/actions/unix_prebuild
+    - name: 'Sanity-Check Working Tree'
+      uses: ./.github/actions/git_check_repo
+
+    - name: 'Configure'
+      uses: ./.github/actions/unix_configure
+    - name: 'Sanity-Check Working Tree'
+      uses: ./.github/actions/git_check_repo
+
+    - name: 'Bundle Artifacts for Diagnostics'
+      if: ${{ always() }}
+      uses: ./.github/actions/git_bundle_ignored
+      with:
+        name: artifact_diag_unix.tar.gz
+
+    - name: 'Build'
+      uses: ./.github/actions/unix_make
+    - name: 'Sanity-Check Working Tree'
+      uses: ./.github/actions/git_check_repo
+
+    - name: 'Check Functionality'
+      uses: ./.github/actions/unix_make
+      with:
+        make-target: check
+    - name: 'Sanity-Check Working Tree'
+      uses: ./.github/actions/git_check_repo
+
+#    - name: 'Install'
+#      uses: ./.github/actions/unix_make
+#      with:
+#        make-target: install
+#    - name: 'Sanity-Check Working Tree'
+#      uses: ./.github/actions/git_check_repo
+
+    - name: 'Upload Artifacts for Diagnostics'
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: artifact_diag_unix
+        path: artifact_diag_unix.tar.gz
+
+    # TODO: Maybe do some basic installation checking.
+
+  build_windows:
+    name: 'Windows Build Test'
+    runs-on: windows-2022
+    steps:
+
+    - name: 'Check out Repository'
+      uses: actions/checkout@v7
+
+    - name: 'Add MSBuild to PATH'
+      uses: microsoft/setup-msbuild@v3
+
+    - name: 'Build'
+      uses: ./.github/actions/windows_build
+      with:
+        pov-ray-build-id: gh${{github.run_number}}
+        solution: vs2015
+        configuration: Release
+        platform: x64
+        toolset: v143
+        msbuild-options: '/p:WindowsTargetPlatformVersion=10.0.19041.0'
+    - name: 'Sanity-Check Working Tree'
+      uses: ./.github/actions/git_check_repo

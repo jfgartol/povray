@@ -9,8 +9,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -115,21 +115,31 @@
 // Unit header file must be the first file included within POV-Ray *.cpp files (pulls in config)
 #include "core/shape/prism.h"
 
+// C++ variants of C standard header files
+//  (none at the moment)
+
+// C++ standard header files
 #include <algorithm>
 
+// POV-Ray header files (base module)
 #include "base/pov_err.h"
 
+// POV-Ray header files (core module)
 #include "core/bounding/boundingbox.h"
 #include "core/math/matrix.h"
 #include "core/math/polynomialsolver.h"
 #include "core/render/ray.h"
 #include "core/scene/tracethreaddata.h"
+#include "core/support/statistics.h"
 
 // this must be the last file included
 #include "base/povdebug.h"
 
 namespace pov
 {
+
+using std::min;
+using std::max;
 
 /*****************************************************************************
 * Local preprocessor defines
@@ -250,7 +260,7 @@ bool Prism::All_Intersections(const Ray& ray, IStack& Depth_Stack, TraceThreadDa
                         u = P[X] + k * D[X];
                         v = P[Z] + k * D[Z];
 
-                        if (in_curve(u, v, Thread))
+                        if (in_curve(u, v, Thread->Stats()))
                         {
                             distance = k / len;
                             if ((distance > DEPTH_TOLERANCE) && (distance < MAX_DISTANCE))
@@ -274,7 +284,7 @@ bool Prism::All_Intersections(const Ray& ray, IStack& Depth_Stack, TraceThreadDa
                         u = P[X] + k * D[X];
                         v = P[Z] + k * D[Z];
 
-                        if (in_curve(u, v, Thread))
+                        if (in_curve(u, v, Thread->Stats()))
                         {
                             distance = k / len;
                             if ((distance > DEPTH_TOLERANCE) && (distance < MAX_DISTANCE))
@@ -292,7 +302,12 @@ bool Prism::All_Intersections(const Ray& ray, IStack& Depth_Stack, TraceThreadDa
             }
 
             /* Intersect ray with all spline segments. */
-            if ((fabs(D[X]) > EPSILON) || (fabs(D[Z]) > EPSILON))
+
+            // TODO - review the quick bailout condition.
+            // While the test is quite simple, it may not kick in frequently enough to warrant the
+            // effort, except in a rather special use case involving an orthographic camera.
+
+            if ((fabs(D[X]) > EPSILON) || (fabs(D[Z]) > EPSILON)) // Quick bailout if ray is parallel to all sides
             {
                 Entry = Spline->Entry;
                 for (j = 0; j < Number; j++, Entry++)
@@ -422,7 +437,7 @@ bool Prism::All_Intersections(const Ray& ray, IStack& Depth_Stack, TraceThreadDa
                             u = (P[X] + k * D[X]) / Height2;
                             v = (P[Z] + k * D[Z]) / Height2;
 
-                            if (in_curve(u, v, Thread))
+                            if (in_curve(u, v, Thread->Stats()))
                             {
                                 distance = k / len;
                                 if ((distance > DEPTH_TOLERANCE) && (distance < MAX_DISTANCE))
@@ -449,7 +464,7 @@ bool Prism::All_Intersections(const Ray& ray, IStack& Depth_Stack, TraceThreadDa
                             u = (P[X] + k * D[X]) / Height1;
                             v = (P[Z] + k * D[Z]) / Height1;
 
-                            if (in_curve(u, v, Thread))
+                            if (in_curve(u, v, Thread->Stats()))
                             {
                                 distance = k / len;
                                 if ((distance > DEPTH_TOLERANCE) && (distance < MAX_DISTANCE))
@@ -473,103 +488,107 @@ bool Prism::All_Intersections(const Ray& ray, IStack& Depth_Stack, TraceThreadDa
             k3 = P[X] * D[Z] - P[Z] * D[X];
 
             /* Intersect ray with the spline segments. */
-            if ((fabs(D[X]) > EPSILON) || (fabs(D[Z]) > EPSILON))
+
+            // NB: Unlike in the LINEAR_SWEEP case, the ray can't be parallel to each and every side
+            // (except in pathological cases), so there's no quick bailout test for that here.
+            // (The equivalent test would be whether the ray runs through the apex point, but that
+            // test is more complex, and there's also no clear-cut use case where it could be
+            // expected to kick in frequently enough to be of any benefit.)
+
+            Entry = Spline->Entry ;
+            for (j = 0; j < Number; j++, Entry++)
             {
-                Entry = Spline->Entry ;
-                for (j = 0; j < Number; j++, Entry++)
+                /* Test spline's bounding rectangle (modified Cohen-Sutherland). */
+                if (((D[X] >= 0.0) && (P[X] > Entry->x2)) ||
+                    ((D[X] <= 0.0) && (P[X] < Entry->x1)) ||
+                    ((D[Z] >= 0.0) && (P[Z] > Entry->y2)) ||
+                    ((D[Z] <= 0.0) && (P[Z] < Entry->y1)))
                 {
-                    /* Test spline's bounding rectangle (modified Cohen-Sutherland). */
-                    if (((D[X] >= 0.0) && (P[X] > Entry->x2)) ||
-                        ((D[X] <= 0.0) && (P[X] < Entry->x1)) ||
-                        ((D[Z] >= 0.0) && (P[Z] > Entry->y2)) ||
-                        ((D[Z] <= 0.0) && (P[Z] < Entry->y1)))
+                    continue;
+                }
+
+                /* Number of roots found. */
+
+                n = 0;
+                switch (Spline_Type)
+                {
+                    case LINEAR_SPLINE :
+
+                        /* Solve linear equation. */
+                        x[0] = Entry->C[X] * k1 + Entry->C[Y] * k2;
+                        x[1] = Entry->D[X] * k1 + Entry->D[Y] * k2 + k3;
+
+                        if (fabs(x[0]) > EPSILON)
+                            y[n++] = -x[1] / x[0];
+                        break;
+
+                    case QUADRATIC_SPLINE :
+
+                        /* Solve quadratic equation. */
+                        x[0] = Entry->B[X] * k1 + Entry->B[Y] * k2;
+                        x[1] = Entry->C[X] * k1 + Entry->C[Y] * k2;
+                        x[2] = Entry->D[X] * k1 + Entry->D[Y] * k2 + k3;
+
+                        n = Solve_Polynomial(2, x, y, false, 0.0, Thread->Stats());
+                        break;
+
+                    case CUBIC_SPLINE :
+                    case BEZIER_SPLINE :
+
+                        /* Solve cubic equation. */
+                        x[0] = Entry->A[X] * k1 + Entry->A[Y] * k2;
+                        x[1] = Entry->B[X] * k1 + Entry->B[Y] * k2;
+                        x[2] = Entry->C[X] * k1 + Entry->C[Y] * k2;
+                        x[3] = Entry->D[X] * k1 + Entry->D[Y] * k2 + k3;
+
+                        n = Solve_Polynomial(3, x, y, Test_Flag(this, STURM_FLAG), 0.0, Thread->Stats());
+                        break;
+                }
+
+                /* Test roots for valid intersections. */
+
+                while (n--)
+                {
+                    w = y[n];
+
+                    if ((w >= 0.0) && (w <= 1.0))
                     {
-                        continue;
-                    }
+                        k = w * (w * (w * Entry->A[X] + Entry->B[X]) + Entry->C[X]) + Entry->D[X];
+                        h = D[X] - k * D[Y];
 
-                    /* Number of roots found. */
-
-                    n = 0;
-                    switch (Spline_Type)
-                    {
-                        case LINEAR_SPLINE :
-
-                            /* Solve linear equation. */
-                            x[0] = Entry->C[X] * k1 + Entry->C[Y] * k2;
-                            x[1] = Entry->D[X] * k1 + Entry->D[Y] * k2 + k3;
-
-                            if (fabs(x[0]) > EPSILON)
-                                y[n++] = -x[1] / x[0];
-                            break;
-
-                        case QUADRATIC_SPLINE :
-
-                            /* Solve quadratic equation. */
-                            x[0] = Entry->B[X] * k1 + Entry->B[Y] * k2;
-                            x[1] = Entry->C[X] * k1 + Entry->C[Y] * k2;
-                            x[2] = Entry->D[X] * k1 + Entry->D[Y] * k2 + k3;
-
-                            n = Solve_Polynomial(2, x, y, false, 0.0, Thread->Stats());
-                            break;
-
-                        case CUBIC_SPLINE :
-                        case BEZIER_SPLINE :
-
-                            /* Solve cubic equation. */
-                            x[0] = Entry->A[X] * k1 + Entry->A[Y] * k2;
-                            x[1] = Entry->B[X] * k1 + Entry->B[Y] * k2;
-                            x[2] = Entry->C[X] * k1 + Entry->C[Y] * k2;
-                            x[3] = Entry->D[X] * k1 + Entry->D[Y] * k2 + k3;
-
-                            n = Solve_Polynomial(3, x, y, Test_Flag(this, STURM_FLAG), 0.0, Thread->Stats());
-                            break;
-                    }
-
-                    /* Test roots for valid intersections. */
-
-                    while (n--)
-                    {
-                        w = y[n];
-
-                        if ((w >= 0.0) && (w <= 1.0))
+                        if (fabs(h) > EPSILON)
                         {
-                            k = w * (w * (w * Entry->A[X] + Entry->B[X]) + Entry->C[X]) + Entry->D[X];
-                            h = D[X] - k * D[Y];
+                            k = (k * P[Y] - P[X]) / h;
+                        }
+                        else
+                        {
+                            k = w * (w * (w * Entry->A[Y] + Entry->B[Y]) + Entry->C[Y]) + Entry->D[Y];
+
+                            h = D[Z] - k * D[Y];
 
                             if (fabs(h) > EPSILON)
                             {
-                                k = (k * P[Y] - P[X]) / h;
+                                k = (k * P[Y] - P[Z]) / h;
                             }
                             else
                             {
-                                k = w * (w * (w * Entry->A[Y] + Entry->B[Y]) + Entry->C[Y]) + Entry->D[Y];
-
-                                h = D[Z] - k * D[Y];
-
-                                if (fabs(h) > EPSILON)
-                                {
-                                    k = (k * P[Y] - P[Z]) / h;
-                                }
-                                else
-                                {
-                                    /* This should never happen! */
-                                    continue;
-                                }
+                                /* This should never happen! */
+                                continue;
                             }
+                        }
 
-                            /* Verify that intersection height is valid. */
-                            h = P[Y] + k * D[Y];
-                            if ((h >= Height1) && (h <= Height2))
+                        /* Verify that intersection height is valid. */
+                        h = P[Y] + k * D[Y];
+                        if ((h >= Height1) && (h <= Height2))
+                        {
+                            distance = k / len;
+                            if ((distance > DEPTH_TOLERANCE) && (distance < MAX_DISTANCE))
                             {
-                                distance = k / len;
-                                if ((distance > DEPTH_TOLERANCE) && (distance < MAX_DISTANCE))
+                                IPoint = ray.Evaluate(distance);
+                                if (Clip.empty() || Point_In_Clip(IPoint, Clip, Thread))
                                 {
-                                    IPoint = ray.Evaluate(distance);
-                                    if (Clip.empty() || Point_In_Clip(IPoint, Clip, Thread))
-                                    {
-                                        Depth_Stack->push (Intersection (distance, IPoint, this, SPLINE_HIT, j, w));
-                                        Found = true;
-                                    }
+                                    Depth_Stack->push (Intersection (distance, IPoint, this, SPLINE_HIT, j, w));
+                                    Found = true;
                                 }
                             }
                         }
@@ -643,7 +662,7 @@ bool Prism::Inside(const Vector3d& IPoint, TraceThreadData *Thread) const
             }
         }
 
-        if (in_curve(P[X], P[Z], Thread))
+        if (in_curve(P[X], P[Z], Thread->Stats()))
         {
             return(!Test_Flag(this, INVERTED_FLAG));
         }
@@ -694,44 +713,62 @@ void Prism::Normal(Vector3d& Result, Intersection *Inter, TraceThreadData *Threa
     PRISM_SPLINE_ENTRY Entry;
     Vector3d N;
 
-    N = Vector3d(0.0, 1.0, 0.0);
-
-    if (Inter->i1 == SPLINE_HIT)
+    switch (Inter->i1)
     {
-        Entry = Spline->Entry[Inter->i2];
+        case BASE_HIT:
 
-        switch (Sweep_Type)
-        {
-            case LINEAR_SWEEP:
+            N = Vector3d(0.0, -1.0, 0.0);
 
-                N[X] =   Inter->d1 * (3.0 * Entry.A[Y] * Inter->d1 + 2.0 * Entry.B[Y]) + Entry.C[Y];
-                N[Y] =   0.0;
-                N[Z] = -(Inter->d1 * (3.0 * Entry.A[X] * Inter->d1 + 2.0 * Entry.B[X]) + Entry.C[X]);
+            break;
 
-                break;
+        case CAP_HIT:
 
-            case CONIC_SWEEP:
+            N = Vector3d(0.0, 1.0, 0.0);
 
-                /* Transform the point into the prism space. */
+            break;
 
-                MInvTransPoint(P, Inter->IPoint, Trans);
+        case SPLINE_HIT:
 
-                if (fabs(P[Y]) > EPSILON)
-                {
+            Entry = Spline->Entry[Inter->i2];
+
+            switch (Sweep_Type)
+            {
+                case LINEAR_SWEEP:
+
                     N[X] =   Inter->d1 * (3.0 * Entry.A[Y] * Inter->d1 + 2.0 * Entry.B[Y]) + Entry.C[Y];
+                    N[Y] =   0.0;
                     N[Z] = -(Inter->d1 * (3.0 * Entry.A[X] * Inter->d1 + 2.0 * Entry.B[X]) + Entry.C[X]);
-                    N[Y] = -(P[X] * N[X] + P[Z] * N[Z]) / P[Y];
-                }
 
-                break;
+                    break;
 
-            default:
+                case CONIC_SWEEP:
 
-                throw POV_EXCEPTION_STRING("Unknown sweep type in Prism_Normal().");
-        }
+                    /* Transform the point into the prism space. */
+
+                    MInvTransPoint(P, Inter->IPoint, Trans);
+
+                    if (fabs(P[Y]) > EPSILON)
+                    {
+                        N[X] =   Inter->d1 * (3.0 * Entry.A[Y] * Inter->d1 + 2.0 * Entry.B[Y]) + Entry.C[Y];
+                        N[Z] = -(Inter->d1 * (3.0 * Entry.A[X] * Inter->d1 + 2.0 * Entry.B[X]) + Entry.C[X]);
+                        N[Y] = -(P[X] * N[X] + P[Z] * N[Z]) / P[Y];
+                    }
+
+                    break;
+
+                default:
+
+                    throw POV_EXCEPTION_STRING("Unknown sweep type in Prism::Normal().");
+            }
+
+            break;
+
+        default:
+
+            throw POV_EXCEPTION_STRING("Unknown side code in Prism::Normal().");
     }
 
-    /* Transform the normalt out of the prism space. */
+    /* Transform the normal out of the prism space. */
 
     MTransNormal(Result, N, Trans);
 
@@ -942,7 +979,7 @@ Prism::Prism() : ObjectBase(PRISM_OBJECT)
     Spline_Type = LINEAR_SPLINE;
     Sweep_Type  = LINEAR_SWEEP;
 
-    Spline = NULL;
+    Spline = nullptr;
 
     Set_Flag(this, CLOSED_FLAG);
 }
@@ -1114,7 +1151,7 @@ void Prism::Compute_BBox()
 *
 ******************************************************************************/
 
-int Prism::in_curve(DBL u, DBL v, TraceThreadData *Thread) const
+int Prism::in_curve(DBL u, DBL v, RenderStatistics& stats) const
 {
     int i, n, NC;
     DBL k, w;
@@ -1142,7 +1179,7 @@ int Prism::in_curve(DBL u, DBL v, TraceThreadData *Thread) const
                 x[2] = Entry.C[Y];
                 x[3] = Entry.D[Y] - v;
 
-                n = Solve_Polynomial(3, x, y, Test_Flag(this, STURM_FLAG), 0.0, Thread->Stats());
+                n = Solve_Polynomial(3, x, y, Test_Flag(this, STURM_FLAG), 0.0, stats);
 
                 while (n--)
                 {
@@ -1335,7 +1372,7 @@ bool Prism::test_rectangle(const Vector3d& P, const Vector3d& D, DBL x1, DBL z1,
 *
 ******************************************************************************/
 
-void Prism::Compute_Prism(Vector2d *P, TraceThreadData *Thread)
+void Prism::Compute_Prism(Vector2d *P, RenderStatistics& stats)
 {
     int i, n, number_of_splines;
     int i1, i2, i3;
@@ -1349,7 +1386,7 @@ void Prism::Compute_Prism(Vector2d *P, TraceThreadData *Thread)
 
     /* Allocate Object->Number segments. */
 
-    if (Spline == NULL)
+    if (Spline == nullptr)
     {
         Spline = reinterpret_cast<PRISM_SPLINE *>(POV_MALLOC(sizeof(PRISM_SPLINE), "spline segments of prism"));
         Spline->References = 1;
@@ -1489,10 +1526,10 @@ void Prism::Compute_Prism(Vector2d *P, TraceThreadData *Thread)
 
                 /* Use Bernstein blending function interpolation. */
 
-                A = P[i] - 3.0 * P[i1] + 3.0 * P[i2] -       P[i3];
-                B =        3.0 * P[i1] - 6.0 * P[i2] + 3.0 * P[i3];
-                C =        3.0 * P[i2] - 3.0 * P[i3];
-                D =                                          P[i3];
+                A = P[i3] - 3.0 * P[i2] + 3.0 * P[i1] -       P[i];
+                B =         3.0 * P[i2] - 6.0 * P[i1] + 3.0 * P[i];
+                C =                       3.0 * P[i1] - 3.0 * P[i];
+                D =                                           P[i];
 
                 x[0] = P[i][X];
                 x[1] = P[i1][X];
@@ -1525,7 +1562,7 @@ void Prism::Compute_Prism(Vector2d *P, TraceThreadData *Thread)
             c[1] = 2.0 * B[X];
             c[2] =       C[X];
 
-            n = Solve_Polynomial(2, c, r, false, 0.0, Thread->Stats());
+            n = Solve_Polynomial(2, c, r, false, 0.0, stats);
 
             while (n--)
             {
@@ -1539,7 +1576,7 @@ void Prism::Compute_Prism(Vector2d *P, TraceThreadData *Thread)
             c[1] = 2.0 * B[Y];
             c[2] =       C[Y];
 
-            n = Solve_Polynomial(2, c, r, false, 0.0, Thread->Stats());
+            n = Solve_Polynomial(2, c, r, false, 0.0, stats);
 
             while (n--)
             {
@@ -1700,3 +1737,4 @@ void Prism::Compute_Prism(Vector2d *P, TraceThreadData *Thread)
 }
 
 }
+// end of namespace pov

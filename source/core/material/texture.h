@@ -7,8 +7,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2017 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2021 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -39,6 +39,17 @@
 // Module config header file must be the first file included within POV-Ray unit header files
 #include "core/configcore.h"
 
+// C++ variants of C standard header files
+//  (none at the moment)
+
+// C++ standard header files
+#include <memory>
+#include <vector>
+
+// POV-Ray header files (base module)
+//  (none at the moment)
+
+// POV-Ray header files (core module)
 #include "core/coretypes.h"
 #include "core/material/blendmap.h"
 #include "core/support/simplevector.h"
@@ -53,7 +64,6 @@ namespace pov
 ///
 /// @{
 
-typedef struct Turb_Struct TURB;
 struct GenericTurbulenceWarp;
 
 /*****************************************************************************
@@ -70,7 +80,7 @@ struct GenericTurbulenceWarp;
 * Global typedefs
 ******************************************************************************/
 
-struct WeightedTexture
+struct WeightedTexture final
 {
     COLC weight;
     TEXTURE *texture;
@@ -79,23 +89,23 @@ struct WeightedTexture
         weight(w), texture(t) { }
 };
 
-typedef FixedSimpleVector<WeightedTexture, WEIGHTEDTEXTURE_VECTOR_SIZE> WeightedTextureVector;
+typedef PooledSimpleVector<WeightedTexture, WEIGHTEDTEXTURE_VECTOR_SIZE> WeightedTextureVector;
 
 
 /// Texture blend map.
-class TextureBlendMap : public BlendMap<TexturePtr>
+class TextureBlendMap final : public BlendMap<TexturePtr>
 {
     public:
 
         TextureBlendMap();
-        ~TextureBlendMap();
+        virtual ~TextureBlendMap() override;
 };
 
 typedef BlendMapEntry<TexturePtr>                   TextureBlendMapEntry;
-typedef shared_ptr<TextureBlendMap>                 TextureBlendMapPtr;
-typedef shared_ptr<const TextureBlendMap>           TextureBlendMapConstPtr;
+typedef std::shared_ptr<TextureBlendMap>            TextureBlendMapPtr;
+typedef std::shared_ptr<const TextureBlendMap>      TextureBlendMapConstPtr;
 
-struct Texture_Struct : public Pattern_Struct
+struct Texture_Struct final : public Pattern_Struct
 {
     TextureBlendMapPtr Blend_Map;
     int References;
@@ -103,13 +113,13 @@ struct Texture_Struct : public Pattern_Struct
     PIGMENT *Pigment;
     TNORMAL *Tnormal;
     FINISH *Finish;
-    vector<TEXTURE*> Materials; // used for `material_map` (and only there)
+    std::vector<TEXTURE*> Materials; // used for `material_map` (and only there)
 };
 
-struct Finish_Struct
+struct Finish_Struct final
 {
     SNGL Diffuse, DiffuseBack, Brilliance;
-#if POV_PARSER_EXPERIMENTAL_BRILLIANCE_OUT
+#if POV_EXPERIMENTAL_BRILLIANCE_OUT
     SNGL BrillianceOut;
 #endif
     SNGL BrillianceAdjust, BrillianceAdjustRad;
@@ -152,5 +162,6 @@ int Test_Opacity (const TEXTURE *Texture);
 //##############################################################################
 
 }
+// end of namespace pov
 
 #endif // POVRAY_CORE_TEXTURE_H

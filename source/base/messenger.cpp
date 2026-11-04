@@ -7,8 +7,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -36,11 +36,15 @@
 // Unit header file must be the first file included within POV-Ray *.cpp files (pulls in config)
 #include "base/messenger.h"
 
-// C++ variants of standard C header files
+// C++ variants of C standard header files
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
 
+// C++ standard header files
+//  (none at the moment)
+
+// POV-Ray header files (base module)
 #include "base/pov_err.h"
 
 // this must be the last file included
@@ -74,7 +78,7 @@ void GenericMessenger::Info(const char *format, ...)
     sprintf(localvsbuffer, "%s Info: ", stageName);
 
     va_start(marker, format);
-    vsnprintf(localvsbuffer + strlen(localvsbuffer), 1023 - strlen(localvsbuffer), format, marker);
+    std::vsnprintf(localvsbuffer + strlen(localvsbuffer), sizeof(localvsbuffer) - strlen(localvsbuffer), format, marker);
     va_end(marker);
 
     CleanupString(localvsbuffer);
@@ -82,7 +86,7 @@ void GenericMessenger::Info(const char *format, ...)
     SendMessage(kMessageClass_Info, level, localvsbuffer);
 }
 
-void GenericMessenger::InfoAt(const UCS2 *filename, POV_LONG line, POV_LONG column, POV_LONG offset, const char *format, ...)
+void GenericMessenger::InfoAt(const MessageContext& context, const char *format, ...)
 {
     WarningLevel level = kWarningGeneral;
     if(warningLevel < level)
@@ -94,7 +98,27 @@ void GenericMessenger::InfoAt(const UCS2 *filename, POV_LONG line, POV_LONG colu
     sprintf(localvsbuffer, "%s Info: ", stageName);
 
     va_start(marker, format);
-    vsnprintf(localvsbuffer + strlen(localvsbuffer), 1023 - strlen(localvsbuffer), format, marker);
+    std::vsnprintf(localvsbuffer + strlen(localvsbuffer), sizeof(localvsbuffer) - strlen(localvsbuffer), format, marker);
+    va_end(marker);
+
+    CleanupString(localvsbuffer);
+
+    SendMessage(kMessageClass_Info, level, localvsbuffer, context);
+}
+
+void GenericMessenger::InfoAt(const UCS2String& filename, POV_LONG line, POV_LONG column, POV_OFF_T offset, const char *format, ...)
+{
+    WarningLevel level = kWarningGeneral;
+    if(warningLevel < level)
+        return;
+
+    va_list marker;
+    char localvsbuffer[1024];
+
+    sprintf(localvsbuffer, "%s Info: ", stageName);
+
+    va_start(marker, format);
+    std::vsnprintf(localvsbuffer + strlen(localvsbuffer), sizeof(localvsbuffer) - strlen(localvsbuffer), format, marker);
     va_end(marker);
 
     CleanupString(localvsbuffer);
@@ -113,7 +137,7 @@ void GenericMessenger::Warning(WarningLevel level, const char *format,...)
     sprintf(localvsbuffer, "%s Warning: ", stageName);
 
     va_start(marker, format);
-    vsnprintf(localvsbuffer + strlen(localvsbuffer), 1023 - strlen(localvsbuffer), format, marker);
+    std::vsnprintf(localvsbuffer + strlen(localvsbuffer), sizeof(localvsbuffer) - strlen(localvsbuffer), format, marker);
     va_end(marker);
 
     CleanupString(localvsbuffer);
@@ -121,7 +145,7 @@ void GenericMessenger::Warning(WarningLevel level, const char *format,...)
     SendMessage(kMessageClass_Warning, level, localvsbuffer);
 }
 
-void GenericMessenger::WarningAt(WarningLevel level, const UCS2 *filename, POV_LONG line, POV_LONG column, POV_LONG offset, const char *format, ...)
+void GenericMessenger::WarningAt(WarningLevel level, const MessageContext& context, const char *format, ...)
 {
     if(warningLevel < level)
         return;
@@ -132,7 +156,26 @@ void GenericMessenger::WarningAt(WarningLevel level, const UCS2 *filename, POV_L
     sprintf(localvsbuffer, "%s Warning: ", stageName);
 
     va_start(marker, format);
-    vsnprintf(localvsbuffer + strlen(localvsbuffer), 1023 - strlen(localvsbuffer), format, marker);
+    std::vsnprintf(localvsbuffer + strlen(localvsbuffer), sizeof(localvsbuffer) - strlen(localvsbuffer), format, marker);
+    va_end(marker);
+
+    CleanupString(localvsbuffer);
+
+    SendMessage(kMessageClass_Warning, level, localvsbuffer, context);
+}
+
+void GenericMessenger::WarningAt(WarningLevel level, const UCS2String& filename, POV_LONG line, POV_LONG column, POV_OFF_T offset, const char *format, ...)
+{
+    if(warningLevel < level)
+        return;
+
+    va_list marker;
+    char localvsbuffer[1024];
+
+    sprintf(localvsbuffer, "%s Warning: ", stageName);
+
+    va_start(marker, format);
+    std::vsnprintf(localvsbuffer + strlen(localvsbuffer), sizeof(localvsbuffer) - strlen(localvsbuffer), format, marker);
     va_end(marker);
 
     CleanupString(localvsbuffer);
@@ -151,7 +194,7 @@ void GenericMessenger::PossibleError(const char *format,...)
     sprintf(localvsbuffer, "Possible %s Error: ", stageName);
 
     va_start(marker, format);
-    vsnprintf(localvsbuffer + strlen(localvsbuffer), 1023 - strlen(localvsbuffer), format, marker);
+    std::vsnprintf(localvsbuffer + strlen(localvsbuffer), sizeof(localvsbuffer) - strlen(localvsbuffer), format, marker);
     va_end(marker);
 
     CleanupString(localvsbuffer);
@@ -159,7 +202,7 @@ void GenericMessenger::PossibleError(const char *format,...)
     SendMessage(kMessageClass_PossibleError, kWarningNone, localvsbuffer);
 }
 
-void GenericMessenger::PossibleErrorAt(const UCS2 *filename, POV_LONG line, POV_LONG column, POV_LONG offset, const char *format, ...)
+void GenericMessenger::PossibleErrorAt(const MessageContext& context, const char *format, ...)
 {
     if(warningLevel == 0)
         return;
@@ -170,7 +213,26 @@ void GenericMessenger::PossibleErrorAt(const UCS2 *filename, POV_LONG line, POV_
     sprintf(localvsbuffer, "Possible %s Error: ", stageName);
 
     va_start(marker, format);
-    vsnprintf(localvsbuffer + strlen(localvsbuffer), 1023 - strlen(localvsbuffer), format, marker);
+    std::vsnprintf(localvsbuffer + strlen(localvsbuffer), sizeof(localvsbuffer) - strlen(localvsbuffer), format, marker);
+    va_end(marker);
+
+    CleanupString(localvsbuffer);
+
+    SendMessage(kMessageClass_PossibleError, kWarningNone, localvsbuffer, context);
+}
+
+void GenericMessenger::PossibleErrorAt(const UCS2String& filename, POV_LONG line, POV_LONG column, POV_OFF_T offset, const char *format, ...)
+{
+    if(warningLevel == 0)
+        return;
+
+    va_list marker;
+    char localvsbuffer[1024];
+
+    sprintf(localvsbuffer, "Possible %s Error: ", stageName);
+
+    va_start(marker, format);
+    std::vsnprintf(localvsbuffer + strlen(localvsbuffer), sizeof(localvsbuffer) - strlen(localvsbuffer), format, marker);
     va_end(marker);
 
     CleanupString(localvsbuffer);
@@ -178,13 +240,31 @@ void GenericMessenger::PossibleErrorAt(const UCS2 *filename, POV_LONG line, POV_
     SendMessage(kMessageClass_PossibleError, kWarningNone, localvsbuffer, filename, line, column, offset);
 }
 
-// filename defaults to NULL, and line, column, and offset default to -1
-std::string GenericMessenger::SendError(const char *format, va_list arglist, const UCS2 *filename, POV_LONG line, POV_LONG column, POV_LONG offset)
+void GenericMessenger::SendMessage(MessageClass mc, WarningLevel level, const char *text, const MessageContext& context)
+{
+    SendMessage(mc, level, text, context.GetFileName(), context.GetLine(), context.GetColumn(), context.GetOffset());
+}
+
+std::string GenericMessenger::SendError(const char *format, va_list arglist, const MessageContext& context)
 {
     char localvsbuffer[1024];
 
     sprintf(localvsbuffer, "%s Error: ", stageName);
-    vsnprintf(localvsbuffer + strlen(localvsbuffer), 1023 - strlen(localvsbuffer), format, arglist);
+    std::vsnprintf(localvsbuffer + strlen(localvsbuffer), sizeof(localvsbuffer) - strlen(localvsbuffer), format, arglist);
+    CleanupString(localvsbuffer);
+
+    SendMessage(kMessageClass_Error, kWarningNone, localvsbuffer, context);
+
+    return std::string(localvsbuffer);
+}
+
+// filename defaults to `nullptr`, and line, column, and offset default to -1
+std::string GenericMessenger::SendError(const char *format, va_list arglist, const UCS2String& filename, POV_LONG line, POV_LONG column, POV_OFF_T offset)
+{
+    char localvsbuffer[1024];
+
+    sprintf(localvsbuffer, "%s Error: ", stageName);
+    std::vsnprintf(localvsbuffer + strlen(localvsbuffer), sizeof(localvsbuffer) - strlen(localvsbuffer), format, arglist);
     CleanupString(localvsbuffer);
 
     SendMessage(kMessageClass_Error, kWarningNone, localvsbuffer, filename, line, column, offset);
@@ -244,7 +324,52 @@ void GenericMessenger::Error(Exception& ex, const char *format, ...)
     throw ex;
 }
 
-void GenericMessenger::ErrorAt(const UCS2 *filename, POV_LONG line, POV_LONG column, POV_LONG offset, const char *format, ...)
+void GenericMessenger::ErrorAt(const MessageContext& context, const char *format, ...)
+{
+    va_list marker;
+
+    va_start(marker, format);
+    std::string text = SendError(format, marker, context);
+    va_end(marker);
+
+    // Terminate by throwing an exception with the notification flag already set
+    pov_base::Exception ex(__FUNCTION__, __FILE__, __LINE__, text); // TODO - this location information isn't too helpful
+    ex.frontendnotified(true);
+
+    throw ex;
+}
+
+void GenericMessenger::ErrorAt(const Exception& ex, const MessageContext& context, const char *format, ...)
+{
+    va_list marker;
+
+    if (ex.frontendnotified())
+        throw ex;
+
+    va_start(marker, format);
+    SendError(format, marker, context);
+    va_end(marker);
+
+    pov_base::Exception local_ex(ex);
+    local_ex.frontendnotified(true);
+    throw local_ex;
+}
+
+void GenericMessenger::ErrorAt(Exception& ex, const MessageContext& context, const char *format, ...)
+{
+    va_list marker;
+
+    if (ex.frontendnotified(true))
+        throw ex;
+
+    va_start(marker, format);
+    SendError(format, marker, context);
+    va_end(marker);
+
+    throw ex;
+}
+
+void GenericMessenger::ErrorAt(const UCS2String& filename, POV_LONG line, POV_LONG column, POV_OFF_T offset, const char *format, ...)
 {
     va_list marker;
 
@@ -259,7 +384,7 @@ void GenericMessenger::ErrorAt(const UCS2 *filename, POV_LONG line, POV_LONG col
     throw ex;
 }
 
-void GenericMessenger::ErrorAt(const Exception& ex, const UCS2 *filename, POV_LONG line, POV_LONG column, POV_LONG offset, const char *format, ...)
+void GenericMessenger::ErrorAt(const Exception& ex, const UCS2String& filename, POV_LONG line, POV_LONG column, POV_OFF_T offset, const char *format, ...)
 {
     va_list marker;
 
@@ -275,7 +400,7 @@ void GenericMessenger::ErrorAt(const Exception& ex, const UCS2 *filename, POV_LO
     throw local_ex;
 }
 
-void GenericMessenger::ErrorAt(Exception& ex, const UCS2 *filename, POV_LONG line, POV_LONG column, POV_LONG offset, const char *format, ...)
+void GenericMessenger::ErrorAt(Exception& ex, const UCS2String& filename, POV_LONG line, POV_LONG column, POV_OFF_T offset, const char *format, ...)
 {
     va_list marker;
 
@@ -300,3 +425,4 @@ void GenericMessenger::CleanupString(char *str)
 }
 
 }
+// end of namespace pov_base

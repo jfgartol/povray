@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 
-Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
+Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
 Copyright 1991-2017 Persistence of Vision Raytracer Pty. Ltd.
 
 POV-Ray is free software: you can redistribute it and/or modify it under
@@ -68,7 +68,7 @@ Including the Editor Support DLL (cmedit) in the Build
 
 It is not necessary to build the editor support DLL (cmedit), as it is
 loaded via `LoadLibrary()` and thus no import library is required. You
-can just use the DLL's included with the official version 3.7 binary
+can just use the DLL's included with the official binary
 distribution. If however you do wish to build it, either enable it in
 the configuration manager or initiate a build of that specific project
 manually.
@@ -104,6 +104,12 @@ Build Steps
     `#error` directive afterwards to proceed with the build. Note that
     if you do not do this you will get compile errors.
 
+    Note: If you are building in a Git local workspace, we recommend you run
+    `git update-index --skip-workspace source/base/build.h`. This will keep
+    your changes to the file from being included in a commit, or overwritten
+    in a pull or reset, while still allowing you to pull non-conflicting
+    updates to the file).
+
     By default, the GUI project is built, and the Console project is
     excluded. If you wish to generate a simple console version of
     POV-Ray, please modify the configuration as needed, edit
@@ -132,7 +138,7 @@ Build Steps
     the executable will attempt to load the debug version of POV-Ray's
     editor DLLs. In this case, if you want the editor to be available in
     the GUI, copy the standard editor DLLs that come with the official
-    POV-Ray 3.7 distribution to their debug equivalent names (e.g. copy
+    POV-Ray distribution to their debug equivalent names (e.g. copy
     `cmedit32.dll` to `cmedit32d.dll`, etc).
 
     Note that the copied `cmedit32.dll` will still attempt to load
@@ -243,7 +249,7 @@ the POV-Ray executable and `cmedit32.dll`). Note that if you alter this
 API at all, you must change the editor version (`EDITDLLVERSION` in
 `windows\pvedit.h`).
 
-By default, POV-Ray 3.7 will attempt to load the editor DLL's from the
+By default, POV-Ray will attempt to load the editor DLL's from the
 directory in which the EXE resides first. (The previous strategy was to
 look in the current working directory first; POV-Ray no longer checks
 the CWD, though you can force that behaviour if you wish by using the
@@ -365,6 +371,6 @@ Thanks
 ======
 
 The POV-Team would like to thank all those who have assisted in bringing
-POV-Ray 3.7 and its predecessors to the public - you know who you are,
+POV-Ray v3.8 and its predecessors to the public - you know who you are,
 and we salute you.
 

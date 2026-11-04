@@ -8,8 +8,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2015 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -37,7 +37,7 @@
 #ifndef POV_POVMSUTIL_H
 #define POV_POVMSUTIL_H
 
-#include "povms/povms.h"
+#include "povms/povms.h" // pulls in config
 
 namespace pov
 {
@@ -48,5 +48,6 @@ int Send_Progress(const char *statusString, int progressState);
 int Send_ProgressUpdate(int progressState, int timeDiff = 1);
 
 }
+// end of namespace pov
 
 #endif // POV_POVMSUTIL_H

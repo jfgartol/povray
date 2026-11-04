@@ -7,8 +7,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -38,12 +38,22 @@
 
 // Module config header file must be the first file included within POV-Ray unit header files
 #include "core/configcore.h"
+#include "core/scene/scenedata_fwd.h"
 
+// C++ variants of C standard header files
+//  (none at the moment)
+
+// C++ standard header files
 #include <map>
+#include <string>
+#include <vector>
 
-#include "base/image/colourspace.h"
+// POV-Ray header files (base module)
+#include "base/image/colourspace_fwd.h"
 
+// POV-Ray header files (core module)
 #include "core/lighting/radiosity.h"
+#include "core/scene/atmosphere_fwd.h"
 #include "core/scene/camera.h"
 #include "core/shape/truetype.h"
 
@@ -60,17 +70,13 @@ using namespace pov_base;
 
 class BSPTree;
 
-struct Fog_Struct;
-struct Rainbow_Struct;
-struct Skysphere_Struct;
-
 /// Class holding scene specific data.
 ///
 /// "For private use by Scene, View and Renderer classes only!
 /// This class just provides access to scene specific data
 /// needed in many parts of the code. Be aware that while most
 /// data is members are public, they shall **not** be modified
-/// carelessly. Code from POV-Ray 3.6 and earlier does depend
+/// carelessly. Code from POV-Ray v3.6 and earlier does depend
 /// on simple access of this data all over the old code, so
 /// this provides an efficient way to reuse all the old code.
 /// By no means shall this way of data access be used for any
@@ -80,17 +86,17 @@ class SceneData
 {
     public:
 
-        typedef std::map<string, string>         DeclaredVariablesMap;
+        typedef std::map<std::string, std::string> DeclaredVariablesMap;
 
         /// Destructor.
-        ~SceneData();
+        virtual ~SceneData();
 
         /// list of all shape objects
-        vector<ObjectPtr> objects;
+        std::vector<ObjectPtr> objects;
         /// list of all global light sources
-        vector<LightSource *> lightSources;
+        std::vector<LightSource*> lightSources;
         /// list of all lights that are part of light groups
-        vector<LightSource *> lightGroupLightSources;
+        std::vector<LightSource*> lightGroupLightSources;
         /// factory generating contexts for legacy VM-based functions in scene
         GenericFunctionContextFactoryIPtr functionContextFactory;
         /// atmosphere index of refraction
@@ -98,7 +104,7 @@ class SceneData
         /// atmosphere dispersion
         DBL atmosphereDispersion;
         /// atmospheric media
-        vector<Media> atmosphere;
+        std::vector<Media> atmosphere;
         /// background color - TODO - allow pattern here (useful for background image maps) [trf]
         TransColour backgroundColour; // may have a filter/transmit component (but filter is ignored)
         /// ambient light in scene
@@ -119,8 +125,8 @@ class SceneData
         bool languageVersionLate;
         /// warning level
         int warningLevel;
-        /// string encoding of text
-        StringEncoding stringEncoding;
+        /// legacy `charset` global setting
+        LegacyCharset legacyCharset;
         /// default noise generator to use
         int noiseGenerator;
         /// whether or not the noise generator was explicitly set by the scene - TODO FIXME remove [trf]
@@ -131,8 +137,6 @@ class SceneData
         pov_base::SimpleGammaCurvePtr workingGamma;
         /// Working gamma to sRGB encoding/decoding.
         pov_base::GammaCurvePtr workingGammaToSRGB;
-        /// Whether the user has explicitly specified a default input file gamma. [will be removed in 3.7x]
-        bool inputFileGammaSet;
         /// Default assumed decoding gamma of input files.
         SimpleGammaCurvePtr inputFileGamma;
         /// What gamma mode to use.
@@ -155,8 +159,8 @@ class SceneData
         bool subsurfaceUseRadiosity;
 
         // ********************************************************************************
-        // temporary variables for BSP testing ... we may or may not keep these come 3.7
-        // release, depending on whether or not a valid need for them has been demonstrated.
+        // temporary variables for BSP testing ... we may or may not keep these in future
+        // releases, depending on whether or not a valid need for them has been demonstrated.
         // ********************************************************************************
         unsigned int bspMaxDepth;
         float bspObjectIsectCost;
@@ -168,7 +172,7 @@ class SceneData
         bool realTimeRaytracing;
 
         // ********************************************************************************
-        // Old globals from 3.6 and earlier are temporarily kept below. Please carefully
+        // Old globals from v3.6 and earlier are temporarily kept below. Please carefully
         // consider what is added and mark it accordingly if it needs to go away again
         // prior to final release! [trf]
         // ********************************************************************************
@@ -192,11 +196,14 @@ class SceneData
 
         // TODO - decide if we want to keep this here
         // (we can't move it to the parser though, as part of the data needs to survive into rendering)
-        vector<TrueTypeFont*> TTFonts;
+        std::vector<TrueTypeFont*> TTFonts;
 
         // name of the parsed file
         UCS2String inputFile; // TODO - handle differently
         UCS2String headerFile;
+
+        /// Aspect ratio of the output image.
+        DBL aspectRatio;
 
         int defaultFileType;
 
@@ -204,7 +211,7 @@ class SceneData
         DeclaredVariablesMap declaredVariables; // TODO - move to parser
         Camera parsedCamera; // TODO - handle differently or move to parser
         bool clocklessAnimation; // TODO - this is support for an experimental feature and may be changed or removed
-        vector<Camera> cameras; // TODO - this is support for an experimental feature and may be changed or removed
+        std::vector<Camera> cameras; // TODO - this is support for an experimental feature and may be changed or removed
 
         // this is for fractal support
         int Fractal_Iteration_Stack_Length; // TODO - move somewhere else
@@ -229,13 +236,13 @@ class SceneData
 
         /// Convenience function to determine the effective SDL version.
         ///
-        /// Given that version 3.7 and later require the first statement in the file to be
+        /// Given that version v3.7 and later require the first statement in the file to be
         /// a `#version` statement, the absence of such a statement can be presumed to
-        /// indicate a pre-3.7 scene; this function assumes version 3.62 in that case
-        /// (which was the latest 3.6 version when 3.7.0 was released).
+        /// indicate a pre-v3.7 scene; this function assumes v3.6.2 in that case
+        /// (which was the latest version before v3.7.0).
         /// @note       It is recommended to use this function only where behaviour differs
-        ///             significantly from pre-3.7 versions.
-        /// @return     The current language version in integer format (e.g. 370 for 3.70)
+        ///             significantly from pre-v3.7 versions.
+        /// @return     The current language version in integer format (e.g. 370 for v3.7.0)
         ///             if explicitly specified, or 362 otherwise.
         ///
         inline unsigned int EffectiveLanguageVersion() const
@@ -251,11 +258,8 @@ class SceneData
 
     private:
 
-        /// not available
-        SceneData(const SceneData&);
-
-        /// not available
-        SceneData& operator=(const SceneData&);
+        SceneData(const SceneData&) = delete;
+        SceneData& operator=(const SceneData&) = delete;
 };
 
 /// @}
@@ -263,5 +267,6 @@ class SceneData
 //##############################################################################
 
 }
+// end of namespace pov
 
 #endif // POVRAY_CORE_SCENEDATA_H

@@ -9,8 +9,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2015 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -35,25 +35,29 @@
 ///
 //******************************************************************************
 
-#ifndef __VFEPOVMS_H__
-#define __VFEPOVMS_H__
+#ifndef POVRAY_VFE_VFEPOVMS_H
+#define POVRAY_VFE_VFEPOVMS_H
+
+#include "base/stringtypes.h"
+#include "povms/povmscpp.h"
 
 namespace vfe
 {
   bool POVMS_Init (void);
   void POVMS_Shutdown (void);
 }
+// end of namespace vfe
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // templates to turn a type into a POVMS typeid. note not all POVMS types are supported.
 ////////////////////////////////////////////////////////////////////////////////////////
 
-template<typename ET> struct GetPOVMSTypeID { enum { type_id = 0 } ; } ;
-template<> struct GetPOVMSTypeID<bool> { enum { type_id = kPOVMSType_Bool } ; } ;
-template<> struct GetPOVMSTypeID<int> { enum { type_id = kPOVMSType_Int } ; } ;
-template<> struct GetPOVMSTypeID<long> { enum { type_id = kPOVMSType_Long } ; } ;
-template<> struct GetPOVMSTypeID<float> { enum { type_id = kPOVMSType_Float } ; } ;
-template<> struct GetPOVMSTypeID<char *> { enum { type_id = kPOVMSType_CString } ; } ;
-template<> struct GetPOVMSTypeID<pov_base::UCS2String&> { enum { type_id = kPOVMSType_UCS2String } ; } ;
+template<typename ET> struct GetPOVMSTypeID final { enum { type_id = 0 } ; } ;
+template<> struct GetPOVMSTypeID<bool> final { enum { type_id = kPOVMSType_Bool } ; } ;
+template<> struct GetPOVMSTypeID<int> final { enum { type_id = kPOVMSType_Int } ; } ;
+template<> struct GetPOVMSTypeID<long> final { enum { type_id = kPOVMSType_Long } ; } ;
+template<> struct GetPOVMSTypeID<float> final { enum { type_id = kPOVMSType_Float } ; } ;
+template<> struct GetPOVMSTypeID<char *> final { enum { type_id = kPOVMSType_CString } ; } ;
+template<> struct GetPOVMSTypeID<pov_base::UCS2String&> final { enum { type_id = kPOVMSType_UCS2String } ; } ;
 
-#endif // __VFEPOVMS_H__
+#endif // POVRAY_VFE_VFEPOVMS_H

@@ -1,11 +1,13 @@
 ##############################################################################
-#               configure.ac
+#
+# configure.ac
 #
 # Process this file with autoconf to produce the configure script.
 #
 # ---------------------------------------------------------------------------
-# Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-# Copyright 1991-2013 Persistence of Vision Raytracer Pty. Ltd.
+#
+# Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+# Copyright 1991-2017 Persistence of Vision Raytracer Pty. Ltd.
 #
 # POV-Ray is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -19,30 +21,28 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 #---------------------------------------------------------------------------
+#
 # POV-Ray is based on the popular DKB raytracer version 2.12.
 # DKBTrace was originally written by David K. Buck.
 # DKBTrace Ver 2.0-2.12 were written by David K. Buck & Aaron A. Collins.
-#---------------------------------------------------------------------------
-# $File: N/A $
-# $Revision: N/A $
-# $Change: N/A $
-# $DateTime: N/A $
-# $Author: N/A $
-# $Log$
+#
 ##############################################################################
 
-# configure.ac for the source distribution of POV-Ray 3.7 for UNIX
+# configure.ac for the source distribution of POV-Ray v3.8 for UNIX
+# Report bugs via https://github.com/POV-Ray/povray/issues
+#
+# Based on configure.ac from POV-Ray v3.7
 # Written by Nicolas Calimet <nicolas.calimet@povray.org>
-# Report bugs via http://bugs.povray.org/
-# Based on configure.ac from POV-Ray 3.6
+# Based on configure.ac from POV-Ray v3.6
 
 # Required autoconf version.
-AC_PREREQ(2.59)
+AC_PREREQ(2.68)
 
 # Inits.
 
-# The file VERSION must contain only the version string MAJOR.MINOR(.PATCHLEVEL)(-PRERELEASE)
+# The file VERSION must contain only the version string MAJOR.MINOR.REVISION(.PATCHLEVEL)(-PRERELEASE)
 AC_INIT([POV-Ray], m4_normalize(m4_include([VERSION])), [unix-bugreports-2011@povray.org], [povray])
 
 # VERSION_BASE is then defined as MAJOR.MINOR
@@ -50,15 +50,17 @@ VERSION_BASE=`echo $PACKAGE_VERSION | sed 's,\([[0-9]]*.[[0-9]]*\).*,\1,g'`
 AC_SUBST([VERSION_BASE])
 AC_DEFINE_UNQUOTED([VERSION_BASE], ["$VERSION_BASE"], [Base version number of package.])
 AC_CONFIG_AUX_DIR([unix/config])
-AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_HEADERS([unix/config.h])
 AC_CONFIG_SRCDIR([unix/disp_text.cpp])
 
 # Additional autoconf macros.
-m4_include([unix/config/acx_pthread.m4])
+# Those required by other macros go first.
+m4_include([unix/config/ax_require_defined.m4])
+# The remainder we're sorting alphabetically.
+m4_include([unix/config/ax_pthread.m4])
 m4_include([unix/config/ax_arg_enable.m4])
 m4_include([unix/config/ax_arg_with.m4])
 m4_include([unix/config/ax_boost_base.m4])
-m4_include([unix/config/ax_boost_thread.m4])
 m4_include([unix/config/ax_test_compiler_flags.m4])
 m4_include([unix/config/ax_check_compile_flag.m4])
 m4_include([unix/config/ax_check_lib.m4])
@@ -69,6 +71,7 @@ m4_include([unix/config/ax_check_openexr.m4])
 m4_include([unix/config/ax_compare_version.m4])
 m4_include([unix/config/ax_compiler_vendor.m4])
 m4_include([unix/config/ax_compiler_version.m4])
+m4_include([unix/config/ax_cxx_compile_stdcxx.m4])
 m4_include([unix/config/ax_fix_incorrect_path.m4])
 m4_include([unix/config/ax_prog_ld_static.m4])
 m4_include([unix/config/ax_x86_arch.m4])
@@ -105,9 +108,9 @@ AX_ARG_WITH([--with-libsdl],        [DIR], [use the SDL library (in directory DI
 AX_ARG_WITH([--with-libmkl],        [DIR], [use the Intel(R) Math Kernel Library (in directory DIR)])
 AX_ARG_WITH([--with-openexr],       [DIR], [use the OpenEXR library (in directory DIR)]) 
 
-AC_ARG_VAR([COMPILED_BY], [customize the "unofficial version" message (required argument)])
+AC_ARG_VAR([COMPILED_BY], [customize the "unofficial version" message])
 AC_ARG_VAR([NON_REDISTRIBUTABLE_BUILD], [see the installation documentation])
-AC_ARG_VAR([C99_COMPATIBLE_RADIOSITY], [adapt radiosity code to non-IEEE 754 floating point, requires ISO C99 compiler and library (see octree.cpp for details)])
+AC_ARG_VAR([C99_COMPATIBLE_RADIOSITY], [adapt radiosity code to non-IEEE 754 floating point (see configcore.h for details)])
 
 
 ###############################################################################
@@ -118,29 +121,7 @@ rm -f ./povray.ini
 
 # Instruction message.
 if test x"$COMPILED_BY" = x""; then
-  echo "
-Welcome to the $PACKAGE_NAME $PACKAGE_VERSION configure script.
-
-This script will prepare the source distribution of $PACKAGE_NAME $PACKAGE_VERSION for Unix
-for compilation on this machine.  Compiling the program yourself means
-that the POV-Ray Team(tm) is not responsible for supporting this
-version, no matter if it is the unmodified official POV-Ray source code
-or a customized version.  Refer to the POV-Ray source license conditions
-that come with this package.
-
-In order to start configuration, you have to provide a valid contact
-information that will be included in the executable and displayed
-whenever POV-Ray (or a modified version of it) is started.  In case
-you intend to distribute this binary, this information will help users
-to contact the appropriate maintainers.  To start configuring $PACKAGE_NAME
-type in the following command with your own contact information:
-
-./configure COMPILED_BY=\"your name <email@address>\"
-
-Please consult the INSTALL file for additional configuration and
-installation instructions.
-"
-  exit 1
+  COMPILED_BY="$USER <no contact address>"
 fi
 
 pov_no_distrib="${NON_REDISTRIBUTABLE_BUILD:-no}"
@@ -174,6 +155,8 @@ AM_MAINTAINER_MODE
 AX_FIX_INCORRECT_PATH(C_INCLUDE_PATH, ".", [pov_warn_path="$pov_warn_path C_INCLUDE_PATH"])
 AX_FIX_INCORRECT_PATH(CPLUS_INCLUDE_PATH, ".", [pov_warn_path="$pov_warn_path CPLUS_INCLUDE_PATH"])
 
+AM_PROG_AR
+
 
 ###############################################################################
 
@@ -205,6 +188,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM],
   ]
 )
 AC_PROG_CXXCPP
+AX_CXX_COMPILE_STDCXX(11)
 
 AX_COMPILER_VENDOR
 AX_COMPILER_VERSION
@@ -233,11 +217,16 @@ echo "trying stat --format='%u,%g' ." >>config.log
 if stat --format='%u,%g' . >>config.log 2>>config.log && test x`stat --format=Foo .` = x"Foo"; then
   stat_format="--format="
 else
-  echo "trying stat --f '%u,%g' ." >>config.log
+  echo "trying stat -f '%u,%g' ." >>config.log
   if stat -f '%u,%g' . >>config.log 2>>config.log && test x`stat -f Foo .` = x"Foo"; then
     stat_format="-f "
   else
-    AC_MSG_FAILURE([stat command does not behave as required])
+    echo "trying stat -c'%u,%g' ." >>config.log
+    if stat -c '%u,%g' . >>config.log 2>>config.log && test x`stat -c Foo .` = x"Foo"; then
+      stat_format="-c "
+    else
+      AC_MSG_FAILURE([stat command does not behave as required])
+    fi
   fi
 fi
 AC_MSG_RESULT([$stat_format])
@@ -308,48 +297,13 @@ if test ! `$CXX -v < /dev/null 2> /dev/null`; then
 fi
 
 # Posix threads
-ACX_PTHREAD
+AX_PTHREAD
 CXXFLAGS="$CXXFLAGS $PTHREAD_CFLAGS"  # append
 LIBS="$LIBS $PTHREAD_CFLAGS $PTHREAD_LIBS"  # append
 
 # Boost; required library
 # the following macro stops with error when boost is not found
 AX_BOOST_BASE([$required_libboost_version])
-AX_BOOST_THREAD
-if test x"$ax_cv_boost_thread" != x"yes"; then
-  AC_MSG_ERROR([cannot find a suitable boost thread library])
-else
-  CPPFLAGS="$CPPFLAGS $BOOST_CPPFLAGS"  # append
-  LDFLAGS="$LDFLAGS $BOOST_LDFLAGS"     # append
-  LIBS="$BOOST_THREAD_LIB $LIBS"
-fi
-AC_MSG_CHECKING([whether the boost thread library is usable])
-SAVED_LIBS=$LIBS
-boost_thread_links=0
-for extralib in '' '-lboost_system'
-do
-  LIBS=$SAVED_LIBS
-  LIBS="$LIBS $extralib"
-AC_RUN_IFELSE(
-  [AC_LANG_PROGRAM([[
-#include <boost/thread/thread.hpp>
-    ]],
-    [[boost::defer_lock_t(); return 0;]])],
-  [
-    AC_MSG_RESULT([yes])
-    BOOST_THREAD_LIB="$BOOST_THREAD_LIB $extralib"
-    boost_thread_links=1
-  ],,
-  [AC_MSG_RESULT([cross-compiling])]  # FIXME
-)
-  if test $boost_thread_links = '1'; then
-    break
-  fi
-done
-if test $boost_thread_links != '1'; then
-  AC_MSG_RESULT([no])
-  AC_MSG_FAILURE([cannot link with the boost thread library])
-fi
 
 AC_DEFINE([USE_OFFICIAL_BOOST], [], [Use the official Boost libraries.])
 
@@ -603,23 +557,6 @@ AC_LANG_POP([C])
 #AC_FUNC_STRFTIME  # FIXME
 #AC_FUNC_VPRINTF   # FIXME
 
-# vsnprintf <stdarg.h> (C99)
-AC_CHECK_FUNC([vsnprintf],
-  [],
-  [AC_MSG_ERROR([
-*** This system does not provide the C99 vsnprintf() function which
-*** is required to compile $PACKAGE_NAME.  You should consider updating
-*** your C library as it is too old.  Alternatively you might install
-*** a specific library implementing the (v)snprintf family of functions.
-*** Searching the web should give you appropriate pointers.
-***
-*** In case you want to try compiling $PACKAGE_NAME while your system lacks
-*** this function (meaning that compilation *will* fail unless you provide
-*** a replacement function), try the --disable-vsnprintf-check option.
-])
-  ]
-)
-
 # getcwd or its equivalent with getenv <unistd.h>
 AC_LANG_PUSH([C])
 AC_CHECK_FUNCS([getcwd],
@@ -683,47 +620,25 @@ AC_CHECK_DECLS([RUSAGE_SELF, RUSAGE_THREAD, RUSAGE_LWP],
 # gettimeofday <sys/time.h>
 AC_CHECK_FUNCS([gettimeofday])
 
-# asinh and friends (requires libm)
-AC_CHECK_FUNCS([asinh],
-  [],
-  [AC_DEFINE([NEED_INVHYP], [], [Inverse hyperbolic functions.])]
-)
+# (Not checking for `asinh` and friends anymore, as they are mandatory as of C++11. [CLi])
 
-# support for non-IEEE compilers (requires libm)
+# support for non-IEEE compilers
+# TODO FIXME - We should actually check for existence of `int32_t` rather than size of `int` now.
 if test x"$C99_COMPATIBLE_RADIOSITY" != x"" || test x"$ac_cv_sizeof_int" != x"4" || test x"$ac_cv_sizeof_float" != x"4"; then
-  AC_CHECK_FUNCS([copysign],
-    [],
-    [AC_MSG_ERROR([
-*** Cannot find the 'copysign' function required for non-ieee platform
-])]
-  )
+  # (Not checking for `copysign` anymore as we're no longer using it. [CLi])
   if test x"$C99_COMPATIBLE_RADIOSITY" = x""; then  # auto-detection
-    AC_CHECK_FUNCS([ilogbf],
-      [AC_DEFINE([C99_COMPATIBLE_RADIOSITY], [2], [See source/backend/support/octree.cpp for details.])],
-      [AC_CHECK_FUNCS([ilogb],
-         [AC_DEFINE([C99_COMPATIBLE_RADIOSITY], [4], [See source/backend/support/octree.cpp for details.])],
-         [AC_CHECK_FUNCS([logbf],
-            [AC_DEFINE([C99_COMPATIBLE_RADIOSITY], [1], [See source/backend/support/octree.cpp for details.])],
-            [AC_CHECK_FUNCS([logb],
-               [AC_DEFINE([C99_COMPATIBLE_RADIOSITY], [3], [See source/backend/support/octree.cpp for details.])],
-               [AC_MSG_ERROR([
-*** Cannot find a 'logb' or equivalent function required for non-ieee platform
-])]
-             )]
-          )]
-       )]
-    )
-  else  # check value of C99_COMPATIBLE_RADIOSITY and function presence
+    # Simply choose `frexpf`/`ldexpf` variant; C++11 requires their existence,
+    # and they provide maximum portability at good performance.
+    AC_DEFINE([C99_COMPATIBLE_RADIOSITY], [6], [See source/core/configcore.h for details.])
+  else  # check value of C99_COMPATIBLE_RADIOSITY
+    # (Not checking function presence anymore, as they are all mandatory as of C++11. [CLi])
     case "$C99_COMPATIBLE_RADIOSITY" in
-      1) AC_CHECK_FUNCS([logbf],  [], [AC_MSG_ERROR([logbf not found])]) ;;
-      2) AC_CHECK_FUNCS([ilogbf], [], [AC_MSG_ERROR([ilogbf not found])]) ;;
-      3) AC_CHECK_FUNCS([logb],   [], [AC_MSG_ERROR([logb not found])]) ;;
-      4) AC_CHECK_FUNCS([ilogb],  [], [AC_MSG_ERROR([ilogb not found])]) ;;
+      1|2|3|4|5|6|7|8|9) ;;
       *) AC_MSG_ERROR([Unsupported C99_COMPATIBLE_RADIOSITY value]) ;;
     esac
     AC_DEFINE_UNQUOTED([C99_COMPATIBLE_RADIOSITY],
       [$C99_COMPATIBLE_RADIOSITY],
-      [See source/backend/support/octree.cpp for details.]
+      [See source/core/configcore.h for details.]
     )
   fi
 fi
@@ -765,6 +680,7 @@ if test x"$pov_compiler_vendor" = x"gnu"; then
   AX_TEST_COMPILER_FLAGS([-fno-enforce-eh-specs])
   AX_TEST_COMPILER_FLAGS([-Wno-non-template-friend])
 fi
+AX_TEST_COMPILER_FLAGS([-Wsuggest-override])
 
 
 # I/O restrictions.
@@ -1233,7 +1149,7 @@ AC_RUN_IFELSE([
       ],[
         AC_MSG_RESULT([yes])
         AC_DEFINE([HAVE_INF],           [],[infinite floating point values are supported])
-        AC_DEFINE([HAVE_EMULATED_ISINF],[],[infinities can be identified by them comparing non-equal to themselves])
+        AC_DEFINE([HAVE_EMULATED_ISINF],[],[infinities can be identified by comparison to the maximum value])
       ],[
         # although double and float support infinite values, they are no use to us as we can't properly test for them,
         # so we're not setting HAVE_INF.
@@ -1355,6 +1271,7 @@ Compilation settings:
   Compiler vendor:     $pov_compiler_vendor
   Compiler version:    $pov_compiler_version
   Compiler flags:      $CXXFLAGS
+  Libraries:           $LIBS
 
 Type 'make check' to build the program and run a test render.
 Type 'make install' to install $PACKAGE_NAME on your system.

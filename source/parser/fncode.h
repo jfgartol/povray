@@ -9,8 +9,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2016 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2019 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -41,12 +41,28 @@
 // Module config header file must be the first file included within POV-Ray unit header files
 #include "parser/configparser.h"
 
-#include "vm/fnpovfpu.h"
+// C++ variants of C standard header files
+// C++ standard header files
+//  (none at the moment)
 
+// Boost header files
+#include <boost/intrusive_ptr.hpp>
+
+// POV-Ray header files (base module)
+// POV-Ray header files (core module)
+//  (none at the moment)
+
+// POV-Ray header files (VM module)
+#include "vm/fnpovfpu_fwd.h"
+
+// POV-Ray header files (parser module)
+#include "parser/parser_fwd.h"
 #include "parser/reservedwords.h"
 
-namespace pov
+namespace pov_parser
 {
+
+using namespace pov;
 
 #ifndef DEBUG_FLOATFUNCTION
     #define DEBUG_FLOATFUNCTION 0
@@ -87,12 +103,9 @@ enum
     OP_TRAP         // 23
 };
 
-class Parser;
-class FunctionVM;
-
 void FNCode_Copy(FunctionCode *, FunctionCode *);
 
-struct ExprNode
+struct ExprNode final
 {
     ExprNode *parent;
     ExprNode *child;
@@ -106,7 +119,7 @@ struct ExprNode
         struct
         {
             char *name;
-            TOKEN token;
+            TokenId token;
             FUNCTION fn;
         } call;
         unsigned int trap;
@@ -114,7 +127,7 @@ struct ExprNode
     };
 };
 
-class FNCode
+class FNCode final
 {
     public:
         FNCode(Parser *, FunctionCode *, bool, const char *);
@@ -129,7 +142,7 @@ class FNCode
     private:
         FunctionCode *function;
         Parser *parser;
-        intrusive_ptr<FunctionVM> functionVM;
+        boost::intrusive_ptr<FunctionVM> functionVM;
 
         unsigned int max_program_size;
         unsigned int max_stack_size;
@@ -145,8 +158,8 @@ class FNCode
 
         #endif
 
-        FNCode();
-        FNCode(FNCode&);
+        FNCode() = delete;
+        FNCode(FNCode&) = delete;
 
         void compile_recursive(ExprNode *expr);
         void compile_member(char *name);
@@ -183,5 +196,6 @@ class FNCode
 };
 
 }
+// end of namespace pov_parser
 
 #endif // POVRAY_PARSER_FNCODE_H

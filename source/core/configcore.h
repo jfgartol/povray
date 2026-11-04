@@ -9,8 +9,8 @@
 /// @copyright
 /// @parblock
 ///
-/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.7.
-/// Copyright 1991-2017 Persistence of Vision Raytracer Pty. Ltd.
+/// Persistence of Vision Ray Tracer ('POV-Ray') version 3.8.
+/// Copyright 1991-2021 Persistence of Vision Raytracer Pty. Ltd.
 ///
 /// POV-Ray is free software: you can redistribute it and/or modify
 /// it under the terms of the GNU Affero General Public License as
@@ -38,6 +38,7 @@
 #ifndef POVRAY_CORE_CONFIGCORE_H
 #define POVRAY_CORE_CONFIGCORE_H
 
+// Pull in other compile-time config header files first
 #include "base/configbase.h"
 #include "syspovconfigcore.h"
 
@@ -46,46 +47,67 @@
 /// @defgroup PovCoreConfig Core Compile-Time Configuration
 /// @ingroup PovCore
 /// @ingroup PovConfig
+/// Compile-Time Configuration of the @ref PovCore.
 ///
 /// @{
 
+/// @def POV_EXPERIMENTAL_BRILLIANCE_OUT
+/// Whether experimental second brilliance parameter should be enabled.
+///
+#ifndef POV_EXPERIMENTAL_BRILLIANCE_OUT
+    #define POV_EXPERIMENTAL_BRILLIANCE_OUT 0
+#endif
+
 //******************************************************************************
 ///
-/// @name FixedSimpleVector Sizes
+/// @name PooledSimpleVector Sizes
 ///
-/// These defines affect the maximum size of some types based on @ref pov::FixedSimpleVector.
+/// These defines affect the initial size of some types based on @ref pov::PooledSimpleVector.
 ///
 /// @todo
-///     These sizes will need tweaking.
+///     These sizes may need tweaking.
 ///
 /// @{
 
 #ifndef MEDIA_VECTOR_SIZE
-#define MEDIA_VECTOR_SIZE               256
+    #define MEDIA_VECTOR_SIZE               256
 #endif
 
 #ifndef MEDIA_INTERVAL_VECTOR_SIZE
-#define MEDIA_INTERVAL_VECTOR_SIZE      256
+    #define MEDIA_INTERVAL_VECTOR_SIZE      256
 #endif
 
 #ifndef LIT_INTERVAL_VECTOR_SIZE
-#define LIT_INTERVAL_VECTOR_SIZE        512
+    #define LIT_INTERVAL_VECTOR_SIZE        512
 #endif
 
 #ifndef LIGHT_INTERSECTION_VECTOR_SIZE
-#define LIGHT_INTERSECTION_VECTOR_SIZE  512 // TODO - I think this should be LIGHTSOURCE_VECTOR_SIZE*2 [CLi]
+    #define LIGHT_INTERSECTION_VECTOR_SIZE  512 // TODO - I think this should be LIGHTSOURCE_VECTOR_SIZE*2 [CLi]
 #endif
 
 #ifndef LIGHTSOURCE_VECTOR_SIZE
-#define LIGHTSOURCE_VECTOR_SIZE         1024
+    #define LIGHTSOURCE_VECTOR_SIZE         1024
 #endif
 
 #ifndef WEIGHTEDTEXTURE_VECTOR_SIZE
-#define WEIGHTEDTEXTURE_VECTOR_SIZE     512
+    #define WEIGHTEDTEXTURE_VECTOR_SIZE     512
 #endif
 
 #ifndef RAYINTERIOR_VECTOR_SIZE
-#define RAYINTERIOR_VECTOR_SIZE         512
+    #define RAYINTERIOR_VECTOR_SIZE         512
+#endif
+
+/// @def POV_VECTOR_POOL_SIZE
+/// Initial size of @ref PooledSimpleVector pools.
+#ifndef POV_VECTOR_POOL_SIZE
+    #define POV_VECTOR_POOL_SIZE            16
+#endif
+
+/// @def POV_SIMPLE_VECTOR
+/// Vector type optimized for performance.
+/// May be either `std::vector`, `pov::SimpleVector`, or a compatible template.
+#ifndef POV_SIMPLE_VECTOR
+    #define POV_SIMPLE_VECTOR               pov::SimpleVector
 #endif
 
 /// @}
@@ -187,10 +209,6 @@
 ///
 //******************************************************************************
 
-#ifndef QSORT
-    #define QSORT(a,b,c,d) qsort((a),(b),(c),(d))
-#endif
-
 /// @def TRY_OPTIMIZED_NOISE
 /// Whether the platform provides dynamic optimized noise.
 ///
@@ -204,10 +222,57 @@
 #ifndef TRY_OPTIMIZED_NOISE
     // leave undefined
     #ifdef DOXYGEN
-        // doxygen cannot document undefined macros; also, we want to force declaration of the
+        // Doxygen cannot document undefined macros; also, we want to force declaration of the
         // TryOptimizedNoise() function.
         #define TRY_OPTIMIZED_NOISE
     #endif
+#endif
+
+/// @def C99_COMPATIBLE_RADIOSITY
+/// @deprecated
+///     This is effectively a legacy alias for @ref POV_PORTABLE_RADIOSITY,
+///     which takes precedence if defined.
+///
+#ifndef C99_COMPATIBLE_RADIOSITY
+    #define C99_COMPATIBLE_RADIOSITY 0
+#endif
+
+/// @def POV_PORTABLE_RADIOSITY
+/// Whether to implement radiosity octree in a portable manner.
+///
+/// This setting selects one of several implementations of certain operations
+/// in the octree code:
+///
+///   - @ref Pow2Floor(): Rounds a positive value down towards the next lower
+///     power of 2.
+///   - @ref BiasedIntLog2(): Computes the (biased) integer base-2 logarithm
+///     of a positive value.
+///   - @ref BiasedIntPow2(): Computes 2 to a (biased) integer ppwer.
+///
+/// The available implementations are based on the following primitives:
+///
+/// | Value | Pow2Floor                   | BiasedIntLog2 | BiasedIntPow2       |  Bias | Prerequisites                         |
+/// | ----: | :---------------------------- | :-------- | :-------------------- | ----: | :------------------------------------ |
+/// |     0 | `float` bit bashing                                             |||  +127 | `float` must be IEEE 754 "binary32"   |
+/// |     1 | `logbf`, `pow`                | `logbf`   | `int` bit shifting    |     0 | `float` must be radix-2               |
+/// |     2 | `ilogbf`, `int` bit shifting  | `ilogbf`  | ^                     |     ^ | ^                                     |
+/// |     3 | `logb`, `pow`                 | `logb`    | ^                     |     ^ | `double` must be radix-2              |
+/// |     4 | `ilogb`, `int` bit shifting   | `ilogb`   | ^                     |     ^ | ^                                     |
+/// |     5 | `double` bit bashing                                            ||| +1023 | `double` must be IEEE 754 "binary64"  |
+/// |     6 | `frexpf`, `ldexpf`            | `frexpf`  | `ldexpf`              |     0 | none                                  |
+/// |     7 | `ilogbf`, `ldexpf`            | `ilogbf`  | `ldexpf`              |     ^ | `float` must be radix-2               |
+/// |     8 | `frexp`, `ldexp`              | `frexp`   | `ldexp`               |     ^ | none                                  |
+/// |     9 | `ilogb`, `ldexp`              | `ilogb`   | `ldexp`               |     ^ | `double` must be radix-2              |
+///
+/// @note
+///     Settings 1-4 are deprecated, due to their restricted numeric range.
+///
+/// @note
+///     This setting defaults to @ref C99_COMPATIBLE_RADIOSITY, which in turn
+///     defaults to 0.
+///
+#ifndef POV_PORTABLE_RADIOSITY
+    #define POV_PORTABLE_RADIOSITY C99_COMPATIBLE_RADIOSITY
 #endif
 
 //******************************************************************************
@@ -224,24 +289,6 @@
 /// builds, in which case they will default to @ref POV_CORE_DEBUG unless noted otherwise.
 ///
 /// @{
-
-/// @def POV_BOMB_ON_ERROR
-/// Fail hard on all errors, allowing a debugger to kick in.
-///
-/// Define as non-zero integer to enable, or zero to disable.
-///
-/// If left undefined by system-specific configurations, this setting defaults to `0`.
-///
-/// @attention
-///     This setting is _strictly_ for debugging purposes only, and should _never ever_ be enabled
-///     in a release build!
-///
-/// @note
-///     At present, this is not yet supported by all error conditions.
-///
-#ifndef POV_BOMB_ON_ERROR
-    #define POV_BOMB_ON_ERROR 0
-#endif
 
 /// @def POV_CORE_DEBUG
 /// Default setting for enabling or disabling @ref PovCore debugging aids.
@@ -271,6 +318,15 @@
 ///
 #ifndef POV_PATTERN_DEBUG
     #define POV_PATTERN_DEBUG POV_CORE_DEBUG
+#endif
+
+/// @def POV_PHOTONS_DEBUG
+/// Enable run-time sanity checks for photons.
+///
+/// Define as non-zero integer to enable, or zero to disable.
+///
+#ifndef POV_PHOTONS_DEBUG
+    #define POV_PHOTONS_DEBUG POV_CORE_DEBUG
 #endif
 
 /// @def POV_PIGMENT_DEBUG
@@ -354,6 +410,12 @@
     #define POV_PATTERN_ASSERT(expr) POV_ASSERT_HARD(expr)
 #else
     #define POV_PATTERN_ASSERT(expr) POV_ASSERT_DISABLE(expr)
+#endif
+
+#if POV_PHOTONS_DEBUG
+    #define POV_PHOTONS_ASSERT(expr) POV_ASSERT_HARD(expr)
+#else
+    #define POV_PHOTONS_ASSERT(expr) POV_ASSERT_DISABLE(expr)
 #endif
 
 #if POV_PIGMENT_DEBUG
